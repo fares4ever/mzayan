@@ -394,9 +394,11 @@ function errorJson($msg){
     
     exit();
 }
+
 function successJson($msg){
     echo json_encode($msg);
 }
+
 function getConnection() {
     try {
         $db_username = "root";
