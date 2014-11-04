@@ -20,8 +20,10 @@ $app->get('/testLogin','authenticate','testLogin');
 $app->get('/logout','logout');
 
 $app->post('/register','registerNewUser');
+$app->post('/addDname/:uid','addDisplayName');
 $app->post('/addUserInfo/:uid','addUserInfo');
-$app->get('/checkdisplayname/:displayName','checkDispayName');
+
+$app->post('/checkdisplayname','checkDispayName');
 
 $app->get('/userprofile/:uid','getUserProfile');
 //
@@ -138,10 +140,11 @@ Function registerNewUser(){
     $req = $app->request();
     $r_userEmail = $req->post('user_email');
     $r_userPass = $req->post('user_pass');
-    //$r_userMobile = $req->post('user_mobile');
-    //$r_userAge = $req->post('user_age');
     
-    validateEmail($r_userEmail);
+    if (isEmailUsed($r_userEmail))
+        errorJson ("This Email is already Used");
+    
+    validatePassword($r_userPass);
     
     $query = "INSERT INTO mz_users(email, password) VALUES(:email, :pass)";
     
@@ -162,8 +165,107 @@ Function registerNewUser(){
         echo '{"error":{"text":'. $e->getMessage() .'}}';
     }  
 }
+Function addDisplayName($uid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $dName = $req->post('user_dname');
+    
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT))
+        errorJson("Somthing Wrong");
+    
+    if(isDisplayNameUsed($dName))
+        errorJson ($dName." Already Used");
+    
+//    if(isUserInfoAdded($uid))
+//        checkDispayName($dName);
+//    else
+//        errorJson ("User Dispay Name Alreay Added");
+    
+    $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, :dname)";
+    try {
+        $dbCon = getConnection();
+        //$stmt   = $dbCon->query($query);
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid);
+        $stmt->bindParam("dname", $dName);
+        $stmt->execute();
+        //$uid = $dbCon->lastInsertId();
+        //$users  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $dbCon = null;
+        echo json_encode(array('uid' => $uid));
+        //echo '{"users": ' . json_encode($users) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }  
+    
+}
 
-Function validateEmail($email){
+Function addUserInfo($uid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $uAvatar = $req->post('user_avatar');
+    $uMobile = $req->post('user_mobile');
+    $uAge = $req->post('user_age');
+    $uStatus = $req->post('user_status');
+    
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT))
+        errorJson("Somthing Wrong");
+    
+    //checkDispayName($r_userdname);
+    //
+    $s = ($uStatus == null  || $uStatus == "" )? "" : " ustatus = :ustatus";
+    $m = ($uMobile == null  || $uMobile == "" )? "" : " mobile = :mobile";
+    $a = ($uAge == null     || $uAge == "" )?    "" : " age = :age";
+    $v = ($uAvatar == null  || $uAvatar == "" )? "" : " uavatar = :uavatar";
+
+    $setparam = array($s, $m, $a, $v);
+    $setString = addparam($setparam, 0);
+    
+    $query = "UPDATE mz_userInfo SET ".$setString." WHERE uid = :uid";
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid);
+        ($uStatus == "")?   :$stmt->bindParam("ustatus", $uStatus);
+        ($uMobile == "")?   :$stmt->bindParam("mobile", $uMobile);
+        ($uAge == "")?      :$stmt->bindParam("age", $uAge);
+        ($uAvatar == "")?   :$stmt->bindParam("uavatar", $uAvatar);
+        $stmt->execute();
+        
+        $dbCon = null;
+        echo json_encode(array('uid' => $uid));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }  
+}
+
+Function validatePassword($pass){
+    if ($pass == null || $pass == "")
+        errorJson ("Please choose Password");
+}
+
+/***
+ * TODO: change this to be decreament
+ */
+function addparam($param, $i){
+    $t = "";
+    if($i < 4)
+    {
+        if($param[$i] == "")
+            $t = addparam ($param, $i+1);
+        else{
+            $t = $param[$i];
+            $n = addparam($param, $i+1);
+            if ($n != "")
+                $t .= ", " . $n;  
+        }
+    }
+    return $t;
+}
+
+Function isEmailUsed($email){
     
     if (!filter_var($email, FILTER_VALIDATE_EMAIL))
         errorJson ("Not a valid email");
@@ -177,75 +279,71 @@ Function validateEmail($email){
         $count = $stmt->fetchColumn(); 
         $dbCon = null;
         if ($count>0)
-            errorJson ("This Email is already Used");
+            return true;
+            //errorJson ("This Email is already Used");
         
         //echo '{"user": ' . json_encode($users) . '}';
     } catch(PDOException $e) {
         errorJson($e->getMessage());
         //echo '{"error":{"text":'. $e->getMessage() .'}}'; 
     }
-    return true;
+    return false;
 }
 
-Function addUserInfo($uid){
-    $app = \Slim\Slim::getInstance();
-    $req = $app->request();
-    //$r_useruid = $req->post('user_uid');
-    $r_userdname = $req->post('user_dname');
-    $r_userMobile = $req->post('user_mobile');
-    $r_userAge = $req->post('user_age');
+Function isDisplayNameUsed($dName){
+    if ($dName == null || $dName == "")
+        errorJson ("Display Name Cannot be empty");
     
-    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT))
-        errorJson("Somthing Wrong");
-    
-    checkDispayName($r_userdname);
-    
-    $query = "INSERT INTO mz_userInfo(uid, displayname, mobile, age) VALUES(:uid, :dname, :mobile, :age)";
-    try {
-        $dbCon = getConnection();
-        //$stmt   = $dbCon->query($query);
-        $stmt = $dbCon->prepare($query); 
-        $stmt->bindParam("uid", $uid);
-        $stmt->bindParam("dname", $r_userdname);
-        $stmt->bindParam("mobile", $r_userMobile);
-        $stmt->bindParam("age", $r_userAge);
-        $stmt->execute();
-        //$uid = $dbCon->lastInsertId();
-        //$users  = $stmt->fetchAll(PDO::FETCH_OBJ);
-        $dbCon = null;
-        echo json_encode(array('uid' => $uid));
-        //echo '{"users": ' . json_encode($users) . '}';
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
-}
-
-Function checkDispayName($dName){
-    //$login = query("SELECT displayname FROM mz_userInfo WHERE displayname='%s' limit 1", $displayName);
-    if ($dName == null)
-        errorJson ("Please pick display name");
-            
-    $sql = "SELECT displayname FROM mz_userInfo WHERE displayname LIKE :dname limit 1";
+    $sql = "SELECT count(displayname) FROM mz_userInfo WHERE displayname LIKE :dname limit 1";
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($sql);
-        $stmt->bindParam("dname", $dname);
+        $stmt->bindParam("dname", $dName);
         $stmt->execute();
         $count = $stmt->fetchColumn(); 
         $dbCon = null;
         if ($count>0)
-            errorJson ("This name is already Used");
+            return true;
+    } catch(PDOException $e) {
+        errorJson($e->getMessage());
+    }
+    return false;
+}
+
+Function isUserInfoAdded($uid){
+    $sql = "SELECT count(uid) FROM mz_userInfo WHERE uid = :uid";
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($sql);
+        $stmt->bindParam("uid", $uid);
+        $stmt->execute();
+        $count = $stmt->fetchColumn(); 
+        $dbCon = null;
+        if ($count>0)
+            return true;
+            //errorJson ("The User Information (Display Name) is already Added");
         
         //echo '{"user": ' . json_encode($users) . '}';
     } catch(PDOException $e) {
         errorJson($e->getMessage());
         //echo '{"error":{"text":'. $e->getMessage() .'}}'; 
     }
-    return true;
+    return false;
+}
+
+
+
+
+
+Function checkDispayName(){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $dName = $req->post('user_dname');
     
+    if(isDisplayNameUsed($dName))
+        errorJson ($dName. " is Already Used");
     
-    
+    echo json_encode(array('Success'=>true));
 }
 
 function getUserProfile($uid){
@@ -296,7 +394,9 @@ function errorJson($msg){
     
     exit();
 }
-
+function successJson($msg){
+    echo json_encode($msg);
+}
 function getConnection() {
     try {
         $db_username = "root";
