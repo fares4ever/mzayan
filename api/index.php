@@ -22,17 +22,18 @@ $app->get('/logout','logout');
 $app->post('/register','registerNewUser');
 $app->post('/addDname/:uid','addDisplayName');
 $app->post('/addUserInfo/:uid','addUserInfo');
-
 $app->post('/checkdisplayname','checkDispayName');
 
-$app->get('/userprofile/:uid','getUserProfile');
-//
-//// return last user posts ===> add pagination
-//$app->get('/userposts/:uid','getUserPosts');
-//
-//
-//// return image + title + text + likes count + 4 first comments (commenter + ctext )
-//$app->get('/post/:pid','getPost');
+$app->get('/user/:uid/userprofile','getUserProfile');
+//$app->get('/user/:uid/followers','getUserFollowers');
+//$app->get('/user/:uid/followings','getUserFollowings');
+//$app->get('/user/:uid/posts','getUserPosts');
+
+// return thumbimage + title + text + (likes,Comments, Pidders) count + Highest Pid
+$app->get('/posts','getPosts');
+$app->get('/post/:pid/likers','getLikers');
+$app->get('/post/:pid/comments','getComments');
+
 //// image + title + text
 //$app->post('/addpost','addPost');
 //$app->post('/deletepost/:pid','deletePost');
@@ -266,9 +267,9 @@ function addparam($param, $i){
 }
 
 Function isEmailUsed($email){
-    
+
     if (!filter_var($email, FILTER_VALIDATE_EMAIL))
-        errorJson ("Not a valid email");
+        errorJson ("Not a valid email 1 ". $r_userEmail);
       
     $sql = "SELECT count(email) FROM mz_users WHERE email LIKE :email limit 1";
     try {
@@ -332,9 +333,6 @@ Function isUserInfoAdded($uid){
 }
 
 
-
-
-
 Function checkDispayName(){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -382,6 +380,53 @@ function getUserProfile($uid){
     }
 }
 
+
+Function getPosts(){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $pageNumber = $req->get('page_number');
+    $postPerPage = 21;
+    $offsit = $postPerPage * $pageNumber;
+    
+    $query = "SELECT p.pid, p.ptitle, p.pimage, p.pdesc,  p.forsale, p.pdate,
+		p.uid, ui.displayname, 
+                cl.cname, a.aname, s.sname, cty.cname, 
+		count(distinct c.cid) as ccount, 
+                count(distinct l.lid) as lcount, 
+                max( c.price ) as mprice
+              FROM mz_post p	left join mz_userInfo ui on p.uid = ui.uid
+				left join mz_post_comment c on p.pid = c.pid
+				left join mz_post_like l on p.pid = l.pid
+				left join mz_section s on p.psection = s.sid
+                left join mz_color cl on p.pcolor = cl.cid
+                left join mz_age a on p.page = a.aid
+                left join mz_city cty on p.pcity = cty.cid
+                
+              GROUP BY p.pid
+              LIMIT :offsit, :pcount ";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query);
+        $stmt->bindParam("offsit", $offsit);
+        $stmt->bindParam("pcount", $postPerPage);
+        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $dbCon = null;
+        echo '{"users": ' . json_encode($posts) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }    
+    echo json_encode("success $offsit  =>  $postPerPage");
+}
+
+Function getLikers($pid){
+    echo json_encode("Likers ".$pid);
+}
+
+Function getComments($pid){
+    echo json_encode("Commentss ".$pid);
+}
 /***
  * to check that uid is integer and exist in users table and not in userInfo table 
  */
@@ -391,7 +436,6 @@ function checkuid($uid){
 
 function errorJson($msg){
     echo json_encode(array('error'=>$msg));
-    
     exit();
 }
 
@@ -403,7 +447,7 @@ function getConnection() {
     try {
         $db_username = "root";
         $db_password = "root";
-        $conn = new PDO('mysql:host=localhost;port=8889;dbname=mzayan', $db_username, $db_password);
+        $conn = new PDO('mysql:host=127.0.0.1;port=8889;dbname=mzayan', $db_username, $db_password);
         $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     } catch(PDOException $e) {
