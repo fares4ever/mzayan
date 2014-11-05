@@ -166,6 +166,7 @@ Function registerNewUser(){
         echo '{"error":{"text":'. $e->getMessage() .'}}';
     }  
 }
+
 Function addDisplayName($uid){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -269,7 +270,7 @@ function addparam($param, $i){
 Function isEmailUsed($email){
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL))
-        errorJson ("Not a valid email 1 ". $r_userEmail);
+        errorJson ("Not a valid email");
       
     $sql = "SELECT count(email) FROM mz_users WHERE email LIKE :email limit 1";
     try {
@@ -358,9 +359,15 @@ function getUserProfile($uid){
             . " WHERE mz_userInfo.uid = :uid "
             . " AND mz_users.uid = mz_userInfo.uid";
     
-    $query_following = "SELECT count(*) followers FROM mz_following WHERE uid = :uid";
-    $query_followers = "SELECT count(*) followers FROM mz_following WHERE f_uid = :uid";
-    $query_postsCount = "SELECT count(*) followers FROM mz_posts WHERE uid = :uid";
+    $query_followingAndFollowers = "
+        SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, count(f.f_uid) as following, count(distinct p.pid) as posts, count(distinct ff.uid) as followers
+	FROM mz_users u 
+                left join mz_userInfo i on u.uid = i.uid
+                left join mz_following f  on u.uid = f.uid
+                left join mz_following ff on u.uid = ff.f_uid
+                left join mz_post p on u.uid = p.uid 
+	WHERE u.uid = 7";
+        
     
     try {
         $dbCon = getConnection();
