@@ -24,10 +24,13 @@ $app->post('/addDname/:uid','addDisplayName');
 $app->post('/addUserInfo/:uid','addUserInfo');
 $app->post('/checkdisplayname','checkDispayName');
 
-$app->get('/user/:uid/userprofile','getUserProfile');
-//$app->get('/user/:uid/followers','getUserFollowers');
-//$app->get('/user/:uid/followings','getUserFollowings');
-//$app->get('/user/:uid/posts','getUserPosts');
+$app->get('/user/:uid/profile','getUserProfile');
+$app->get('/user/:uid/followers','getFollowers');
+$app->get('/user/:uid/followings','getFollowings');
+$app->get('/user/:uid/posts','getUserPosts');
+
+// TODO this must be added to get User Profile
+//$app->get('/user/:uid/isfolloweduser','isFollowedUser');
 
 // return thumbimage + title + text + (likes,Comments, Pidders) count + Highest Pid
 $app->get('/posts','getPosts');
@@ -135,7 +138,7 @@ function logout() {
 # endregion
   
  
-    
+// POST /register
 Function registerNewUser(){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -158,8 +161,13 @@ Function registerNewUser(){
         $stmt->execute();
         $uid = $dbCon->lastInsertId();
         //$users  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, 'Not Set')";
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid);
+        $
+        $dbCon->
         $dbCon = null;
-        echo json_encode(array('uid' => $uid));
+        echo json_encode(array('last Inserted' => $uid));
         //echo '{"users": ' . json_encode($users) . '}';
     }
     catch(PDOException $e) {
@@ -167,6 +175,7 @@ Function registerNewUser(){
     }  
 }
 
+// POST /addDname/:uid
 Function addDisplayName($uid){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -203,6 +212,7 @@ Function addDisplayName($uid){
     
 }
 
+// POST /addUserInfo/:uid 
 Function addUserInfo($uid){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -333,7 +343,7 @@ Function isUserInfoAdded($uid){
     return false;
 }
 
-
+// POST /checkdisplayname     TODO: review?
 Function checkDispayName(){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -345,33 +355,26 @@ Function checkDispayName(){
     echo json_encode(array('Success'=>true));
 }
 
+// GET /user/:uid/profile
 function getUserProfile($uid){
-    // TODO: will add more followers + following + picture
-    
-    $app = \Slim\Slim::getInstance();
-    $req = $app->request();
-    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT))
+    //$app = \Slim\Slim::getInstance();
+    //$req = $app->request();
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
         errorJson("Somthing Wrong in user id (uid)");
+    }
     
-    
-    $query = "SELECT mz_users.uid, email, displayname, mobile, age "
-            . " FROM mz_users, mz_userInfo"
-            . " WHERE mz_userInfo.uid = :uid "
-            . " AND mz_users.uid = mz_userInfo.uid";
-    
-    $query_followingAndFollowers = "
+    $query = "
         SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, count(f.f_uid) as following, count(distinct p.pid) as posts, count(distinct ff.uid) as followers
 	FROM mz_users u 
                 left join mz_userInfo i on u.uid = i.uid
                 left join mz_following f  on u.uid = f.uid
                 left join mz_following ff on u.uid = ff.f_uid
                 left join mz_post p on u.uid = p.uid 
-	WHERE u.uid = 7";
+	WHERE u.uid = :uid";
         
     
     try {
         $dbCon = getConnection();
-        //$stmt   = $dbCon->query($query);
         $stmt = $dbCon->prepare($query); 
         $stmt->bindParam("uid", $uid);
         $stmt->execute();
@@ -380,14 +383,29 @@ function getUserProfile($uid){
         //$users  = $stmt->fetchAll(PDO::FETCH_OBJ);
         $dbCon = null;
         echo json_encode(array('UserInfo' => $userInfo));
-        //echo '{"users": ' . json_encode($users) . '}';
     }
     catch(PDOException $e) {
         echo '{"error":{"text":'. $e->getMessage() .'}}';
     }
 }
 
+// GET /user/:uid/posts
+function getUserPosts($uid){
+    json_encode("getUserPosts Not Implemented Yet ".$uid);
+}
 
+// GET /user/:uid/followers
+function getFollowers($uid){
+    
+    json_encode("getFollowers Not Implemented Yet ".$uid);
+}
+
+// GET /user/:uid/followings
+function getFollowings($uid){
+    json_encode("getFollowings Not Implemented Yet ".$uid);
+}
+
+// GET /posts
 Function getPosts(){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -415,24 +433,26 @@ Function getPosts(){
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($query);
-        $stmt->bindParam("offsit", $offsit);
-        $stmt->bindParam("pcount", $postPerPage);
+        $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
+        $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
+        $stmt->execute();
         $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
         $dbCon = null;
-        echo '{"users": ' . json_encode($posts) . '}';
+        echo '{"posts": ' . json_encode($posts) . '}';
     }
     catch(PDOException $e) {
         echo '{"error":{"text":'. $e->getMessage() .'}}';
     }    
-    echo json_encode("success $offsit  =>  $postPerPage");
 }
 
+// GET /post/:pid/likers
 Function getLikers($pid){
-    echo json_encode("Likers ".$pid);
+    echo json_encode("getLikers Not Implemented Yet ".$pid);
 }
 
+// GET /post/:pid/comments
 Function getComments($pid){
-    echo json_encode("Commentss ".$pid);
+    echo json_encode("getCommentss Not Implemented Yet ".$pid);
 }
 /***
  * to check that uid is integer and exist in users table and not in userInfo table 
