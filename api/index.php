@@ -24,18 +24,21 @@ $app->post('/addDname/:uid','addDisplayName');
 $app->post('/addUserInfo/:uid','addUserInfo');
 $app->post('/checkdisplayname','checkDispayName');
 
+$app->post('/addpost','addNewPost');
+$app->post('/post/:pid/comment','addComment');
+$app->post('/post/:pid/like','likePost');
+$app->post('/post/:pid/unlike','unLikePost');
+
 $app->get('/user/:uid/profile','getUserProfile');
 $app->get('/user/:uid/followers','getFollowers');
 $app->get('/user/:uid/followings','getFollowings');
 $app->get('/user/:uid/posts','getUserPosts');
 
-// TODO this must be added to get User Profile
-//$app->get('/user/:uid/isfolloweduser','isFollowedUser');
-
 // return thumbimage + title + text + (likes,Comments, Pidders) count + Highest Pid
 $app->get('/posts','getPosts');
 $app->get('/post/:pid/likers','getLikers');
 $app->get('/post/:pid/comments','getComments');
+
 
 //// image + title + text
 //$app->post('/addpost','addPost');
@@ -232,7 +235,7 @@ Function addUserInfo($uid){
     $v = ($uAvatar == null  || $uAvatar == "" )? "" : " uavatar = :uavatar";
 
     $setparam = array($s, $m, $a, $v);
-    $setString = addparam($setparam, 0);
+    $setString = addParam($setparam , 0);
     
     $query = "UPDATE mz_userInfo SET ".$setString." WHERE uid = :uid";
     try {
@@ -259,17 +262,210 @@ Function validatePassword($pass){
 }
 
 /***
+ * POST /addpost
+ * (u_id, p_title, p_image) NOT NULL
+ * 
+ * return Success with the new pid
+ */
+function addNewPost(){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    
+    $uid    = $req->post('u_id');
+    $title  = $req->post('p_title');
+    $image  = $req->post('p_image');
+    $desc   = $req->post('p_desc');
+    $mobile = $req->post('p_mobile');
+    $city   = $req->post('p_city');
+    $color  = $req->post('p_color');
+    $age    = $req->post('p_age');
+    $sec    = $req->post('p_section');
+    $sale   = $req->post('p_forsale');
+    
+    if (!filter_var($uid, FILTER_VALIDATE_INT))
+        errorJson ("Something wrong: 1");
+    if ($title == null || $title =="")
+        errorJson ("Title cannot be empty");
+    if ($image == null || $image == "")
+        errorJson ("Image must be uploaded");
+    
+    $f_desc   = ($desc == null  || $desc == "" )?       array('','') : array('pdesc',':pdesc');
+    $f_mobile = ($mobile == null  || $mobile == "" )?   array('','') : array('pmobile',':pmobile');
+    $f_city   = ($city == null  || $city == "" )?       array('','') : array('pcity',':pcity');
+    $f_color  = ($color == null  || $color == "" )?     array('','') : array('pcolor',':pcolor');
+    $f_age    = ($age == null  || $age == "" )?         array('','') : array('page',':page');
+    $f_sec    = ($sec == null  || $sec == "" )?         array('','') : array('psection',':psection');
+    $f_sale   = ($sale == null  || $sale == "" )?       array('','') : array('forsale',':forsale');
+    
+    $param = array(
+        'fields'=> array('uid', 'ptitle', 'pimage', $f_desc[0], $f_mobile[0], $f_city[0], $f_color[0], $f_age[0], $f_sec[0], $f_sale[0]),
+        'values'=> array(':uid',':ptitle',':pimage', $f_desc[1], $f_mobile[1], $f_city[1], $f_color[1], $f_age[1], $f_sec[1], $f_sale[1]));
+    
+    $fields = addParam($param['fields'], 0);
+    $values = addParam($param['values'], 0);
+    
+    $query = "INSERT INTO mz_post (".$fields.") VALUES (".$values.")";
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        
+        $stmt->bindParam("uid", $uid);
+        $stmt->bindParam("ptitle", $title);
+        $stmt->bindParam("pimage", $image);
+        
+        ($desc == "")?   :$stmt->bindParam("pdesc",   $desc);
+        ($mobile == "")? :$stmt->bindParam("pmobile", $mobile);
+        ($city == "")?   :$stmt->bindParam("pcity",   $city, PDO::PARAM_INT);
+        ($color == "")?  :$stmt->bindParam("pcolor",  $color,PDO::PARAM_INT);
+        ($age == "")?    :$stmt->bindParam("page",    $age,  PDO::PARAM_INT);
+        ($sec == "")?    :$stmt->bindParam("psection",$sec,  PDO::PARAM_INT);
+        ($sale == "")?   :$stmt->bindParam("forsale", $sale, PDO::PARAM_BOOL);
+        $stmt->execute();
+        $pid = $dbCon->lastInsertId();
+        $dbCon = null;
+        echo json_encode(array('Success' => $pid));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }  
+    
+    
+    //echo json_encode(array("success"=>$pid));
+}
+
+/***
+ * POST /post/:pid/comment
+ */
+function addComment($pid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $uid = $req->post('u_id');
+    $comment = $req->post('c_txt');
+    $price = $req->post('c_price');
+    
+    if ($uid == null){
+        errorJson("Somthing Wrong");
+    }
+    if ($comment == null && $price == null){
+        errorJson("Either Comment or Pid");
+    }
+    if ($price == NULL){
+        $price = null;
+    }
+    $query = "INSERT INTO mz_post_comment(pid, uid, comment, price)"
+            . "                  VALUES(:pid, :uid, :comment, :price)";
+    
+    try {
+        $dbCon = getConnection();
+        //$stmt   = $dbCon->query($query);
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid);
+        $stmt->bindParam("uid", $uid);
+        $stmt->bindParam("comment", $comment);
+        $stmt->bindParam("price", $price, PDO::PARAM_INT);
+        $stmt->execute();
+        $cid = $dbCon->lastInsertId();
+        $dbCon = null;
+        echo json_encode(array('Success' => $cid));
+        //echo '{"users": ' . json_encode($users) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }  
+}
+
+/***
+ * POST /post/:pid/like
+ */
+function likePost($pid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $uid = $req->post('u_id');
+    
+    if ($uid == null){
+        errorJson("Something Wrong");
+    }
+    // check like existance first
+    $query = "SELECT count(*) FROM mz_post_like WHERE pid = :pid AND uid = :uid ";
+    //$query = "INSERT INTO mz_post_like(pid, uid) VALUES(:pid, :uid)";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->execute();
+        if ($stmt->fetchColumn()>0){
+            errorJson("Already Liked");
+        }
+        
+        $stmt = null;
+        $query = "INSERT INTO mz_post_like(pid, uid) VALUES(:pid, :uid)";
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->execute();
+        $lid = $dbCon->lastInsertId();
+        $dbCon = null;
+        echo json_encode(array('Success' => $lid));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }  
+}
+
+/***
+ * POST /post/:pid/unlike
+ */
+function unLikePost($pid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $uid = $req->post('u_id');
+    
+    if ($uid == null){
+        errorJson("Something Wrong");
+    }
+    // check like existance first
+    $query = "SELECT count(*) FROM mz_post_like WHERE pid = :pid AND uid = :uid ";
+    //$query = "INSERT INTO mz_post_like(pid, uid) VALUES(:pid, :uid)";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->execute();
+        if ($stmt->fetchColumn()==0){
+            errorJson("Already NOT Liked");
+        }
+        
+        $stmt = null;
+        $query = "DELETE FROM mz_post_like  WHERE pid = :pid AND uid = :uid";
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $dbCon = null;
+        echo json_encode(array('Success'));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+}
+
+/***
  * TODO: change this to be decreament
  */
-function addparam($param, $i){
+function addParam($param, $i){
     $t = "";
-    if($i < 4)
+    if($i < count($param))
     {
         if($param[$i] == "")
-            $t = addparam ($param, $i+1);
+            $t = addParam ($param, $i+1);
         else{
             $t = $param[$i];
-            $n = addparam($param, $i+1);
+            $n = addParam($param, $i+1);
             if ($n != "")
                 $t .= ", " . $n;  
         }
@@ -364,7 +560,10 @@ function getUserProfile($uid){
     }
     
     $query = "
-        SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, count(f.f_uid) as following, count(distinct p.pid) as posts, count(distinct ff.uid) as followers
+        SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, 
+            count(f.f_uid) as following, 
+            count(distinct p.pid) as posts, 
+            count(distinct ff.uid) as followers
 	FROM mz_users u 
                 left join mz_userInfo i on u.uid = i.uid
                 left join mz_following f  on u.uid = f.uid
