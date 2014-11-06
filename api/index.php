@@ -20,7 +20,7 @@ $app->get('/testLogin','authenticate','testLogin');
 $app->get('/logout','logout');
 
 $app->post('/register','registerNewUser');
-$app->post('/addDname/:uid','addDisplayName');
+$app->post('/user/:uid/addname','addDisplayName');
 $app->post('/addUserInfo/:uid','addUserInfo');
 $app->post('/checkdisplayname','checkDispayName');
 
