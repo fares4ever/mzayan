@@ -29,6 +29,10 @@ $app->post('/post/:pid/comment','addComment');
 $app->post('/post/:pid/like','likePost');
 $app->post('/post/:pid/unlike','unLikePost');
 
+$app->post('/user/:fuid/follow','followUser');
+$app->post('/user/:fuid/unfollow','unFollowUser');
+
+
 $app->get('/user/:uid/profile','getUserProfile');
 $app->get('/user/:uid/followers','getFollowers');
 $app->get('/user/:uid/followings','getFollowings');
@@ -39,25 +43,6 @@ $app->get('/posts','getPosts');
 $app->get('/post/:pid/likers','getLikers');
 $app->get('/post/:pid/comments','getComments');
 
-
-//// image + title + text
-//$app->post('/addpost','addPost');
-//$app->post('/deletepost/:pid','deletePost');
-//
-//$app->get('/post/:pid/comments','getPostComments');
-//$app->post('/addcomment/:pid','addComment');
-//$app->post('/deletecomment/:pid','deleteComment');
-//
-//$app->get('/post/:pid/likes','getPostLikes');
-//$app->post('/addlike/:pid','addLike');
-//$app->post('/deletelike/:pid','deleteLike');
-//
-//
-//$app->post('/follow/:uid','follow');
-//$app->post('/unfollow/:uid','unfollow');
-//
-//// return last posts ===> add pagination
-//$app->get('/explore','explore');
 
     
 // run
@@ -421,14 +406,10 @@ function unLikePost($pid){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uid = $req->post('u_id');
-    
     if ($uid == null){
         errorJson("Something Wrong");
     }
-    // check like existance first
     $query = "SELECT count(*) FROM mz_post_like WHERE pid = :pid AND uid = :uid ";
-    //$query = "INSERT INTO mz_post_like(pid, uid) VALUES(:pid, :uid)";
-    
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($query); 
@@ -438,14 +419,12 @@ function unLikePost($pid){
         if ($stmt->fetchColumn()==0){
             errorJson("Already NOT Liked");
         }
-        
         $stmt = null;
         $query = "DELETE FROM mz_post_like  WHERE pid = :pid AND uid = :uid";
         $stmt = $dbCon->prepare($query); 
         $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->execute();
-        
         $dbCon = null;
         echo json_encode(array('Success'));
     }
@@ -453,6 +432,77 @@ function unLikePost($pid){
         echo '{"error":{"text":'. $e->getMessage() .'}}';
     }
 }
+
+/***
+ * POST /user/:fuid/follow
+ */
+function followUser($fuid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $uid = $req->post('u_id');
+    if ($uid == null){
+        errorJson("Something Wrong");
+    }
+    $query = "SELECT count(*) FROM mz_following WHERE uid = :uid AND f_uid = :f_uid ";
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
+        $stmt->execute();
+        if ($stmt->fetchColumn()>0){
+            errorJson("Already Followed");
+        }
+        $stmt = null;
+        $query = "INSERT INTO mz_following(uid, f_uid) VALUES(:uid, :f_uid)";
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
+        $stmt->execute();
+        $dbCon = null;
+        echo json_encode(array('Success'));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+
+}
+
+/***
+ * POST /user/:fuid/unfollow
+ */
+function unFollowUser($fuid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $uid = $req->post('u_id');
+    if ($uid == null){
+        errorJson("Something Wrong");
+    }
+    $query = "SELECT count(*) FROM mz_following WHERE uid = :uid AND f_uid = :f_uid ";
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
+        $stmt->execute();
+        if ($stmt->fetchColumn()==0){
+                errorJson("Already Unfollowed");
+        }
+        $stmt = null;
+        $query = "DELETE FROM mz_following WHERE uid = :uid AND f_uid = :f_uid";
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
+        $stmt->execute();
+        $dbCon = null;
+        echo json_encode(array('Success'));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+}
+
+
 
 /***
  * TODO: change this to be decreament
