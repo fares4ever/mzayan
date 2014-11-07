@@ -8,14 +8,14 @@
 ini_set('display_errors', true);
 // load required files
 require 'lib/Slim/Slim.php';
-include 'db.php';
+//include 'db.php';
 
 \Slim\Slim::registerAutoloader();
 
 $app = new \Slim\Slim();
 
 $app->get('/hello/:name','sayHelloTo');
-$app->get('/login','login');
+$app->post('/login','login');
 $app->get('/testLogin','authenticate','testLogin');
 $app->get('/logout','logout');
 
@@ -32,16 +32,19 @@ $app->post('/post/:pid/unlike','unLikePost');
 $app->post('/user/:fuid/follow','followUser');
 $app->post('/user/:fuid/unfollow','unFollowUser');
 
-
+//$app->get('/posts','getPosts');
+$app->get('/expolre/latest','exploreLatest');
+$app->get('/expolre/popular','explorePopular');
 $app->get('/user/:uid/profile','getUserProfile');
+$app->get('/user/:uid/posts','getUserPosts');
 $app->get('/user/:uid/followers','getFollowers');
 $app->get('/user/:uid/followings','getFollowings');
-$app->get('/user/:uid/posts','getUserPosts');
 
-// return thumbimage + title + text + (likes,Comments, Pidders) count + Highest Pid
-$app->get('/posts','getPosts');
+$app->get('/activities','getActivities');
+
 $app->get('/post/:pid/likers','getLikers');
 $app->get('/post/:pid/comments','getComments');
+$app->get('/post/:pid/bidders','getBidders');
 
 
     
@@ -52,7 +55,7 @@ function sayHelloTo($name){
      echo "Hello, $name";
 }
 
-# region  Authentication Operations
+
 function login() {
     $app = \Slim\Slim::getInstance();
     try {
@@ -89,44 +92,17 @@ function validateUserKey($uid, $key) {
     }
 }
     
-function testLogin() {
-    $app = \Slim\Slim::getInstance();
-    $req = $app->request();
-    $result = array();
-    try {
-        $r_userName = $req->get('user_name');
-        $r_userPass = $req->get('user_pass');
-        if ($r_userName ==="fares"){
-            $result['success'] = true;
 
-        }else{
-            $result['success'] = false;
-        }
 
-    } catch (Exception $e) {
-        $app->response()->status(400);
-        $app->response()->header('X-Status-Reason', $e->getMessage());
-    }
-    $app->response()->header('Content-Type', 'application/json');
-    echo json_encode($result);
-}
-    
-function logout() {
-        $app = \Slim\Slim::getInstance();
-        try {
-            $app->deleteCookie('uid');
-            $app->deleteCookie('key');
-            echo 'demo Logged out';
-            
-        } catch (Exception $e) {
-            $app->response()->status(400);
-            $app->response()->header('X-Status-Reason', $e->getMessage());
-        }
-    }
-# endregion
   
  
-// POST /register
+// <editor-fold desc="Login Functions">
+    
+/***
+ *  POST /register
+ *  @param String user_email
+ *  @param String user_pass 
+ */
 Function registerNewUser(){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -163,7 +139,11 @@ Function registerNewUser(){
     }  
 }
 
-// POST /addDname/:uid
+/**
+ * POST /user/:uid/addname
+ * @param Int $uid 
+ * @param String $user_dname Dispaly Name to add
+ */
 Function addDisplayName($uid){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -174,12 +154,7 @@ Function addDisplayName($uid){
     
     if(isDisplayNameUsed($dName))
         errorJson ($dName." Already Used");
-    
-//    if(isUserInfoAdded($uid))
-//        checkDispayName($dName);
-//    else
-//        errorJson ("User Dispay Name Alreay Added");
-    
+     
     $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, :dname)";
     try {
         $dbCon = getConnection();
@@ -200,7 +175,14 @@ Function addDisplayName($uid){
     
 }
 
-// POST /addUserInfo/:uid 
+/**
+ * POST /addUserInfo/:uid
+ * @param Int $uid 
+ * @param Image user_avatar the user Image
+ * @param String user_mobile User Mobile number
+ * @param String user_age the age of the user
+ * @param String user_status Status that appears under his Display Name
+ */
 Function addUserInfo($uid){
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -241,16 +223,60 @@ Function addUserInfo($uid){
     }  
 }
 
-Function validatePassword($pass){
-    if ($pass == null || $pass == "")
-        errorJson ("Please choose Password");
+function testLogin() {
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $result = array();
+    try {
+        $r_userName = $req->get('user_name');
+        $r_userPass = $req->get('user_pass');
+        if ($r_userName ==="fares"){
+            $result['success'] = true;
+
+        }else{
+            $result['success'] = false;
+        }
+
+    } catch (Exception $e) {
+        $app->response()->status(400);
+        $app->response()->header('X-Status-Reason', $e->getMessage());
+    }
+    $app->response()->header('Content-Type', 'application/json');
+    echo json_encode($result);
 }
+    
+function logout() {
+        $app = \Slim\Slim::getInstance();
+        try {
+            $app->deleteCookie('uid');
+            $app->deleteCookie('key');
+            echo 'demo Logged out';
+            
+        } catch (Exception $e) {
+            $app->response()->status(400);
+            $app->response()->header('X-Status-Reason', $e->getMessage());
+        }
+    }
+// </editor-fold>
+
+// <editor-fold desc="POST Functions">
 
 /***
  * POST /addpost
  * (u_id, p_title, p_image) NOT NULL
- * 
  * return Success with the new pid
+ * 
+ * @param Int u_id the user that post the post
+ * @param String p_title the title of the post
+ * @param Image p_image the image of the post
+ * @param String p_desc the describtion of the image
+ * @param String p_mobile the person's mobile number to contact
+ * @param Int p_city the city number from cities table
+ * @param Int p_color the color number from color table
+ * @param Int p_age the age number from the age table
+ * @param Int p_section the section number from the section table
+ * @param boolean p_forsale is this post for sale
+ * 
  */
 function addNewPost(){
     $app = \Slim\Slim::getInstance();
@@ -361,6 +387,8 @@ function addComment($pid){
 
 /***
  * POST /post/:pid/like
+ * @param Int pid << from the URI 
+ * @param Int u_id the user that likes the post
  */
 function likePost($pid){
     $app = \Slim\Slim::getInstance();
@@ -401,6 +429,8 @@ function likePost($pid){
 
 /***
  * POST /post/:pid/unlike
+ * @param Int pid << from the URI 
+ * @param Int u_id the user that unlikes the post
  */
 function unLikePost($pid){
     $app = \Slim\Slim::getInstance();
@@ -435,6 +465,8 @@ function unLikePost($pid){
 
 /***
  * POST /user/:fuid/follow
+ * @param Int $fuid the user to follow
+ * @param Int u_id the following user
  */
 function followUser($fuid){
     $app = \Slim\Slim::getInstance();
@@ -470,6 +502,8 @@ function followUser($fuid){
 
 /***
  * POST /user/:fuid/unfollow
+ * @param Int $fuid the user to unfollow
+ * @param Int u_id the unfollowing user
  */
 function unFollowUser($fuid){
     $app = \Slim\Slim::getInstance();
@@ -502,7 +536,363 @@ function unFollowUser($fuid){
     }
 }
 
+// </editor-fold>
 
+// <editor-fold desc="GET Functions">
+
+/**
+ *  GET /expolre/latest
+ * @param Int page_number which paeg. for navigation page by page
+ */
+Function exploreLatest(){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $pageNumber = $req->get('page_number');
+    // Number of postes per request
+    $postPerPage = 21; 
+    $offsit = $postPerPage * $pageNumber;
+    
+    $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
+		 cl.cname, a.aname, s.sname, cty.cname, 
+		count(distinct c.cid) as ccount, 
+		count(distinct l.lid) as lcount, 
+		max( c.price ) as mprice
+            FROM mz_post p	
+		left join mz_userInfo ui on p.uid = ui.uid
+		left join mz_post_comment c on p.pid = c.pid
+		left join mz_post_like l on p.pid = l.pid
+		left join mz_section s on p.psection = s.sid
+		left join mz_color cl on p.pcolor = cl.cid
+		left join mz_age a on p.page = a.aid
+		left join mz_city cty on p.pcity = cty.cid
+
+            GROUP BY p.pid
+            ORDER BY p.pdate DESC
+            LIMIT :offsit, :pcount ";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query);
+        $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
+        $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
+        $stmt->execute();
+        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $dbCon = null;
+        echo '{"posts": ' . json_encode($posts) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }    
+}
+
+/**
+ *  GET /expolre/popular get the most popular post by number of likes
+ * @param Int page_number which paeg. for navigation page by page
+ */
+Function explorePopular(){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $pageNumber = $req->get('page_number');
+    // Number of postes per request
+    $postPerPage = 21; 
+    $offsit = $postPerPage * $pageNumber;
+    
+    $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
+		cl.cname, a.aname, s.sname, cty.cname, 
+		count(distinct c.cid) as ccount, 
+		count(distinct l.lid) as lcount, 
+		max( c.price ) as mprice
+            FROM mz_post p	
+		left join mz_userInfo ui on p.uid = ui.uid
+		left join mz_post_comment c on p.pid = c.pid
+		left join mz_post_like l on p.pid = l.pid
+		left join mz_section s on p.psection = s.sid
+		left join mz_color cl on p.pcolor = cl.cid
+		left join mz_age a on p.page = a.aid
+		left join mz_city cty on p.pcity = cty.cid              
+            GROUP BY p.pid
+            ORDER BY lcount desc
+            LIMIT :offsit, :pcount ";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query);
+        $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
+        $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
+        $stmt->execute();
+        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $dbCon = null;
+        echo '{"posts": ' . json_encode($posts) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }    
+}
+
+
+
+/**
+ * GET /user/:uid/profile
+ * @param type $uid 
+ */
+function getUserProfile($uid){
+    
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
+        errorJson("Somthing Wrong in user id (uid)");
+    }
+    
+    $query = "SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, 
+                count(f.f_uid) as following, 
+                count(distinct p.pid) as posts, 
+                count(distinct ff.uid) as followers
+            FROM mz_users u 
+                left join mz_userInfo i on u.uid = i.uid
+                left join mz_following f  on u.uid = f.uid
+                left join mz_following ff on u.uid = ff.f_uid
+                left join mz_post p on u.uid = p.uid 
+            WHERE u.uid = :uid";
+        
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid);
+        $stmt->execute();
+        $userInfo = $stmt->fetchObject(); 
+        $dbCon = null;
+        echo json_encode(array('UserInfo' => $userInfo));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+}
+
+/**
+ * GET /user/:uid/posts
+ */
+function getUserPosts($uid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    $pageNumber = $req->get('page_number');
+    // Number of postes per request
+    $postPerPage = 21; 
+    $offsit = $postPerPage * $pageNumber;
+    
+    $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
+		 cl.cname, a.aname, s.sname, cty.cname, 
+		count(distinct c.cid) as ccount, 
+		count(distinct l.lid) as lcount, 
+		max( c.price ) as mprice
+            FROM mz_post p	
+		left join mz_userInfo ui on p.uid = ui.uid
+		left join mz_post_comment c on p.pid = c.pid
+		left join mz_post_like l on p.pid = l.pid
+		left join mz_section s on p.psection = s.sid
+		left join mz_color cl on p.pcolor = cl.cid
+		left join mz_age a on p.page = a.aid
+		left join mz_city cty on p.pcity = cty.cid
+
+            WHERE p.uid = :uid                
+            GROUP BY p.pid
+            ORDER BY p.pdate desc
+            LIMIT :offsit, :pcount ";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query);
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
+        $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
+        $stmt->execute();
+        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $dbCon = null;
+        echo '{"posts": ' . json_encode($posts) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+}
+
+/**
+ * GET /user/:uid/followers
+ * @param type $uid 
+ */
+function getFollowers($uid){
+       if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
+        errorJson("Somthing Wrong in user id (uid)");
+    }
+    
+    $query = "  SELECT ui.uid, ui.displayname 
+                FROM mz_following f
+                    left join mz_userInfo ui on f.uid = ui.uid
+                WHERE f.f_uid = :uid";
+        
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid);
+        $stmt->execute();
+        $users = $stmt->fetchObject(); 
+        $dbCon = null;
+        echo json_encode(array('Followings' => $users));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+}
+
+/**
+ * GET /user/:uid/followings
+ * @param type $uid 
+ */
+function getFollowings($uid){
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
+        errorJson("Somthing Wrong in user id (uid)");
+    }
+    
+    $query = "select ui.uid, ui.displayname 
+            FROM mz_following f
+                left join mz_userInfo ui on f.f_uid = ui.uid
+            WHERE f.uid = :uid";
+        
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("uid", $uid);
+        $stmt->execute();
+        $users = $stmt->fetchObject(); 
+        $dbCon = null;
+        echo json_encode(array('Followings' => $users));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+}
+
+
+
+/**
+ * GET /post/:pid/likers
+ * @param type $pid 
+ */
+Function getLikers($pid){
+    echo json_encode("getLikers Not Implemented Yet ".$pid);
+}
+
+/**
+ * GET /post/:pid/comments
+ * @param type $pid 
+ */
+Function getComments($pid){
+    
+    if ($pid == null || !filter_var($pid, FILTER_VALIDATE_INT)){
+        errorJson("Somthing Wrong in user id (uid)");
+    }
+    
+    $query = "  SELECT c.uid, ui.displayname , comment, c_date, price
+                FROM mz_post_comment c
+                    LEFT JOIN mz_userInfo ui ON c.uid = ui.uid
+                WHERE c.pid = :pid";
+        
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid);
+        $stmt->execute();
+        $comments = $stmt->fetchObject(); 
+        $dbCon = null;
+        echo json_encode(array('Comments' => $comments));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    
+    }
+}
+
+/**
+ * GET /post/:pid/bidders
+ * @param Int $pid post id
+ */
+Function getBidders($pid){
+    
+    if ($pid == null || !filter_var($pid, FILTER_VALIDATE_INT)){
+        errorJson("Somthing Wrong in user id (uid)");
+    }
+    
+    $query = "  SELECT ui.uid, ui.displayname, price, c_date
+                FROM mz_post_comment c
+                    LEFT JOIN mz_userInfo ui on c.uid = ui.uid
+                WHERE c.price IS NOT NULL 
+                      AND c.pid = :pid";
+        
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query); 
+        $stmt->bindParam("pid", $pid);
+        $stmt->execute();
+        $bidders = $stmt->fetchObject(); 
+        $dbCon = null;
+        echo json_encode(array('Bidders' => $bidders));
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    
+    }
+}
+
+/***
+ * GET /activities "get the latest followings' posts"
+ * @param Int uid the user
+ * @param Int page_number for posts pagination
+ */
+Function getActivities($uid){
+    $app = \Slim\Slim::getInstance();
+    $req = $app->request();
+    
+    $pageNumber = $req->get('page_number');
+    // Number of postes per request
+    $postPerPage = 21; 
+    $offsit = $postPerPage * $pageNumber;
+    
+    $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, 
+                p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
+		cl.cname, a.aname, s.sname, cty.cname, 
+		count(distinct c.cid) as ccount, 
+		count(distinct l.lid) as lcount, 
+		max( c.price ) as mprice
+            FROM mz_post p	
+		left join mz_userInfo ui on p.uid = ui.uid
+		left join mz_post_comment c on p.pid = c.pid
+		left join mz_post_like l on p.pid = l.pid
+		left join mz_section s on p.psection = s.sid
+		left join mz_color cl on p.pcolor = cl.cid
+		left join mz_age a on p.page = a.aid
+		left join mz_city cty on p.pcity = cty.cid
+            WHERE p.uid IN (SELECT f_uid FROM mz_following WHERE uid = :uid)               
+            GROUP BY p.pid
+            ORDER BY p.pdate desc
+            LIMIT :offsit, :pcount ";
+    
+    try {
+        $dbCon = getConnection();
+        $stmt = $dbCon->prepare($query);
+        $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
+        $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
+        $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
+        $stmt->execute();
+        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $dbCon = null;
+        echo '{"posts": ' . json_encode($posts) . '}';
+    }
+    catch(PDOException $e) {
+        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    }
+
+}
+// </editor-fold>
+
+
+ //<editor-fold desc="Helper Functions">
 
 /***
  * TODO: change this to be decreament
@@ -521,6 +911,11 @@ function addParam($param, $i){
         }
     }
     return $t;
+}
+
+Function validatePassword($pass){
+    if ($pass == null || $pass == "")
+        errorJson ("Please choose Password");
 }
 
 Function isEmailUsed($email){
@@ -601,108 +996,9 @@ Function checkDispayName(){
     echo json_encode(array('Success'=>true));
 }
 
-// GET /user/:uid/profile
-function getUserProfile($uid){
-    //$app = \Slim\Slim::getInstance();
-    //$req = $app->request();
-    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
-        errorJson("Somthing Wrong in user id (uid)");
-    }
-    
-    $query = "
-        SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, 
-            count(f.f_uid) as following, 
-            count(distinct p.pid) as posts, 
-            count(distinct ff.uid) as followers
-	FROM mz_users u 
-                left join mz_userInfo i on u.uid = i.uid
-                left join mz_following f  on u.uid = f.uid
-                left join mz_following ff on u.uid = ff.f_uid
-                left join mz_post p on u.uid = p.uid 
-	WHERE u.uid = :uid";
-        
-    
-    try {
-        $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
-        $stmt->bindParam("uid", $uid);
-        $stmt->execute();
-        $userInfo = $stmt->fetchObject(); 
-        //$uid = $dbCon->lastInsertId();
-        //$users  = $stmt->fetchAll(PDO::FETCH_OBJ);
-        $dbCon = null;
-        echo json_encode(array('UserInfo' => $userInfo));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }
-}
+// </editor-fold>
 
-// GET /user/:uid/posts
-function getUserPosts($uid){
-    json_encode("getUserPosts Not Implemented Yet ".$uid);
-}
 
-// GET /user/:uid/followers
-function getFollowers($uid){
-    
-    json_encode("getFollowers Not Implemented Yet ".$uid);
-}
-
-// GET /user/:uid/followings
-function getFollowings($uid){
-    json_encode("getFollowings Not Implemented Yet ".$uid);
-}
-
-// GET /posts
-Function getPosts(){
-    $app = \Slim\Slim::getInstance();
-    $req = $app->request();
-    $pageNumber = $req->get('page_number');
-    $postPerPage = 21;
-    $offsit = $postPerPage * $pageNumber;
-    
-    $query = "SELECT p.pid, p.ptitle, p.pimage, p.pdesc,  p.forsale, p.pdate,
-		p.uid, ui.displayname, 
-                cl.cname, a.aname, s.sname, cty.cname, 
-		count(distinct c.cid) as ccount, 
-                count(distinct l.lid) as lcount, 
-                max( c.price ) as mprice
-              FROM mz_post p	left join mz_userInfo ui on p.uid = ui.uid
-				left join mz_post_comment c on p.pid = c.pid
-				left join mz_post_like l on p.pid = l.pid
-				left join mz_section s on p.psection = s.sid
-                left join mz_color cl on p.pcolor = cl.cid
-                left join mz_age a on p.page = a.aid
-                left join mz_city cty on p.pcity = cty.cid
-                
-              GROUP BY p.pid
-              LIMIT :offsit, :pcount ";
-    
-    try {
-        $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query);
-        $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
-        $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
-        $stmt->execute();
-        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
-        $dbCon = null;
-        echo '{"posts": ' . json_encode($posts) . '}';
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }    
-}
-
-// GET /post/:pid/likers
-Function getLikers($pid){
-    echo json_encode("getLikers Not Implemented Yet ".$pid);
-}
-
-// GET /post/:pid/comments
-Function getComments($pid){
-    echo json_encode("getCommentss Not Implemented Yet ".$pid);
-}
 /***
  * to check that uid is integer and exist in users table and not in userInfo table 
  */
