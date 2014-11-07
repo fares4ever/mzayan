@@ -55,7 +55,6 @@ function sayHelloTo($name){
      echo "Hello, $name";
 }
 
-
 function login() {
     $app = \Slim\Slim::getInstance();
     try {
