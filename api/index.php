@@ -8,11 +8,14 @@
 ini_set('display_errors', true);
 // load required files
 require 'lib/Slim/Slim.php';
-//include 'db.php';
-
 \Slim\Slim::registerAutoloader();
-
 $app = new \Slim\Slim();
+
+
+require_once('lib/OAuth2/Autoloader.php');
+OAuth2\Autoloader::register();
+
+$app->post('/token','getToken');
 
 $app->get('/hello/:name','sayHelloTo');
 $app->post('/login','login');
@@ -92,7 +95,20 @@ function validateUserKey($uid, $key) {
 }
     
 
+Function getToken(){
+    $dsn      = 'mysql:host=127.0.0.1;port=8889;dbname=mzayan';
+    $username = 'root';
+    $password = 'root';
+    // $dsn is the Data Source Name for your database, for exmaple "mysql:dbname=my_oauth2_db;host=localhost"
+    $storage = new OAuth2\Storage\Pdo(array('dsn' => $dsn, 'username' => $username, 'password' => $password));
+    // Pass a storage object or array of storage objects to the OAuth2 server class
+    $server = new OAuth2\Server($storage);
+    // Add the "Client Credentials" grant type (it is the simplest of the grant types)
+    $server->addGrantType(new OAuth2\GrantType\UserCredentials($storage));
 
+    // Handle a request for an OAuth2.0 Access Token and send the response to the client
+    $server->handleTokenRequest(OAuth2\Request::createFromGlobals())->send();
+}
   
  
 // <editor-fold desc="Login Functions">
@@ -113,6 +129,7 @@ Function registerNewUser(){
     
     validatePassword($r_userPass);
     
+    $sha1Pass = sha1($r_userPass);
     $query = "INSERT INTO mz_users(email, password) VALUES(:email, :pass)";
     
     try {
@@ -123,14 +140,17 @@ Function registerNewUser(){
         $stmt->bindParam("pass", $r_userPass);
         $stmt->execute();
         $uid = $dbCon->lastInsertId();
-        //$users  = $stmt->fetchAll(PDO::FETCH_OBJ);
-        $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, 'Not Set')";
+        $stmt = null;
+        
+        $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, 'Not Set');
+                  INSERT INTO oauth_users(username, password) VALUES (:email, :sha1pass)";
         $stmt = $dbCon->prepare($query); 
         $stmt->bindParam("uid", $uid);
-        $
-        $dbCon->
+        $stmt->bindParam("email", $r_userEmail);
+        $stmt->bindParam("sha1pass", $sha1Pass);
+        $stmt->execute();
         $dbCon = null;
-        echo json_encode(array('last Inserted' => $uid));
+        echo json_encode(array('last Inserted sha1 is ' => $sha1Pass));
         //echo '{"users": ' . json_encode($users) . '}';
     }
     catch(PDOException $e) {
