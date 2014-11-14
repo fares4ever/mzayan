@@ -291,46 +291,7 @@ function addNewPost() {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
 
-
-    //$imgs = array();
-
-    //$files = $_FILES['uploads'];
-//    $cnt = count($files['name']);
-//    $tmp_name = $files['tmp_name']."";
-//    
-//    echo "is writeable = ". is_writable("uploads");
-//    echo " is readable = ". is_readable("/Applications/MAMP/tmp/php/");
-//    echo " file = " .$tmp_name;
-//    echo " (".getimagesize($tmp_name).")";
-//    echo " name = " .$files['name'];
-//    echo " unique name= ". $name = uniqid('img-'.'uid'.'-'.'pid'.'-'.date('Ymd').'-');
-//    //move_uploaded_file($files['tmp_name'], 'uploads/xxx');// . $files['tmp_name']);
-// //           
-//    for($i = 0 ; $i < $cnt ; $i++) {
-//        if ($files['error'][$i] === 0) {
-//            $name = uniqid('img-'.date('Ymd').'-');
-//            if (move_uploaded_file($files['tmp_name'][$i], 'uploads/' . $name) === true) {
-//                $imgs[] = array('url' => '/uploads/' . $name, 'name' => $files['name'][$i]);
-//            }
-//
-//        }
-//    }
-
-    //$imageCount = count($imgs);
-
-//    if ($imageCount == 0) {
-//       echo '222 No files uploaded!!  <p><a href="/">Try again</a>';
-//       return;
-//    }
-//
-//    $plural = ($imageCount == 1) ? '' : 's';
-
-//    foreach($imgs as $img) {
-//        printf('%s <img src="%s" width="50" height="50" /><br/>', $img['name'], $img['url']);
-//    }    
-
-
-//    exit(1);
+    validateUploadedImage();
     
     $uid = $req->post('u_id');
     $title = $req->post('p_title');
@@ -937,27 +898,30 @@ Function getActivities($uid) {
 function addParam($param, $i) {
     $t = "";
     if ($i < count($param)) {
-        if ($param[$i] == "")
+        if ($param[$i] == "") {
             $t = addParam($param, $i + 1);
-        else {
+        } else {
             $t = $param[$i];
             $n = addParam($param, $i + 1);
-            if ($n != "")
+            if ($n != "") {
                 $t .= ", " . $n;
+            }
         }
     }
     return $t;
 }
 
 Function validatePassword($pass) {
-    if ($pass == null || $pass == "")
+    if ($pass == null || $pass == "") {
         errorJson("Please choose Password");
+    }
 }
 
 Function isEmailUsed($email) {
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         errorJson("Not a valid email");
+    }
 
     $sql = "SELECT count(email) FROM mz_users WHERE email LIKE :email limit 1";
     try {
@@ -967,8 +931,9 @@ Function isEmailUsed($email) {
         $stmt->execute();
         $count = $stmt->fetchColumn();
         $dbCon = null;
-        if ($count > 0)
+        if ($count > 0) {
             return true;
+        }
         //errorJson ("This Email is already Used");
         //echo '{"user": ' . json_encode($users) . '}';
     } catch (PDOException $e) {
@@ -979,8 +944,9 @@ Function isEmailUsed($email) {
 }
 
 Function isDisplayNameUsed($dName) {
-    if ($dName == null || $dName == "")
+    if ($dName == null || $dName == "") {
         errorJson("Display Name Cannot be empty");
+    }
 
     $sql = "SELECT count(displayname) FROM mz_userInfo WHERE displayname LIKE :dname limit 1";
     try {
@@ -990,8 +956,9 @@ Function isDisplayNameUsed($dName) {
         $stmt->execute();
         $count = $stmt->fetchColumn();
         $dbCon = null;
-        if ($count > 0)
+        if ($count > 0) {
             return true;
+        }
     } catch (PDOException $e) {
         errorJson($e->getMessage());
     }
@@ -1007,8 +974,9 @@ Function isUserInfoAdded($uid) {
         $stmt->execute();
         $count = $stmt->fetchColumn();
         $dbCon = null;
-        if ($count > 0)
+        if ($count > 0) {
             return true;
+        }
         //errorJson ("The User Information (Display Name) is already Added");
         //echo '{"user": ' . json_encode($users) . '}';
     } catch (PDOException $e) {
@@ -1024,62 +992,73 @@ Function checkDispayName() {
     $req = $app->request();
     $dName = $req->post('user_dname');
 
-    if (isDisplayNameUsed($dName))
+    if (isDisplayNameUsed($dName)) {
         errorJson($dName . " is Already Used");
+    }
 
     echo json_encode(array('Success' => true));
 }
 
-Function saveUploadedImageAs($filename, $uid, $pid){
-    if (!isset($_FILES['uploads'])) {
-        errorJson("No Files Uploaded");    
-    }
+Function saveUploadedImageAs($filename){
+    validateUploadedImage();
+    $files = $_FILES['uploads'];
     $target_dir = "uploads/".date('Ymd')."/";
-    
     $target_file = $target_dir . $filename ;
-    $uploadOk = 1;
-    $imageFileType = pathinfo($_FILES['uploads']['name'],PATHINFO_EXTENSION);
-    // Check if image file is a actual image or fake image
-        // Allow certain file formats
-    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
-    && $imageFileType != "gif" ) {
-        echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
-        $uploadOk = 0;
+    
+
+    // Check if directory already exists
+    if (!file_exists($target_dir)){
+        if (!mkdir($target_dir)){
+            errorJson("Cannot create Directory");
+        }
     }
     
-    $check = getimagesize($_FILES["uploads"]["tmp_name"]);
-    if($check !== false) {
-        echo "File is an image - " . $check["mime"] . ".";
-        $uploadOk = 1;
-    } else {
-        echo "File is not an image.";
-        $uploadOk = 0;
-    }
-
     // Check if file already exists
     if (file_exists($target_file)) {
-        echo "Sorry, file already exists.";
-        $uploadOk = 0;
+        errorJson("Sorry, file already exists.");
     }
-    // Check file size
-    if ($_FILES["fileToUpload"]["size"] > 500000) {
-        echo "Sorry, your file is too large.";
-        $uploadOk = 0;
-    }
-
-    // Check if $uploadOk is set to 0 by an error
-    if ($uploadOk == 0) {
-        echo "Sorry, your file was not uploaded.";
-    // if everything is ok, try to upload file
+    
+    if (move_uploaded_file($files["tmp_name"], $target_file)) {
+        echo "The file ". basename( $files["name"]). " has been uploaded.";
     } else {
-        if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-            echo "The file ". basename( $_FILES["fileToUpload"]["name"]). " has been uploaded.";
-        } else {
-            echo "Sorry, there was an error uploading your file.";
-        }
+        errorJson("Sorry, there was an error uploading your file.");
     }
 }
 
+Function validateUploadedImage(){
+    if (!isset($_FILES['uploads'])) {
+        errorJson("No Files Uploaded");    
+    }
+    $files = $_FILES['uploads'];
+    
+    // TODO: add more files in the future
+    $cnt = count($files['name']);
+    if ($cnt>1){
+        errorJson("Cannot upload more than one file at the moment");
+    }
+    // Check file size
+    if ($files["size"] > 500000) {
+        errorJson("Sorry, your file is too big (must be less than 500KB).");
+    }
+    
+
+    $imageFileType = pathinfo($files['name'],PATHINFO_EXTENSION);
+    // Check if image file is a actual image or fake image
+    // Allow certain file formats
+    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
+    && $imageFileType != "gif" ) {
+        errorJson("Sorry, only JPG, JPEG, PNG & GIF files are allowed.");
+    }
+    
+    $checkSize = getimagesize($files["tmp_name"]);
+    if($checkSize !== false) {
+        echo "File is an image - " . $checkSize["mime"] . ".";
+    } else {
+        errorJson("File is not an image.");
+    }
+
+
+}
 // </editor-fold>
 
 
