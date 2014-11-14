@@ -334,7 +334,7 @@ function addNewPost() {
     
     $uid = $req->post('u_id');
     $title = $req->post('p_title');
-    $image = uniqid('img-'.date('His').'-');//Ymd will for directory
+    $image = uniqid('img-'.date('His').'-');//Ymd will be as subdirectories
     $desc = $req->post('p_desc');
     $mobile = $req->post('p_mobile');
     $city = $req->post('p_city');
@@ -1032,25 +1032,30 @@ Function checkDispayName() {
 
 Function saveUploadedImageAs($filename, $uid, $pid){
     if (!isset($_FILES['uploads'])) {
-        errorJson("No Files Uploaded");
-        
+        errorJson("No Files Uploaded");    
     }
     $target_dir = "uploads/".date('Ymd')."/";
     
     $target_file = $target_dir . $filename ;
     $uploadOk = 1;
-    $imageFileType = pathinfo($target_file,PATHINFO_EXTENSION);
+    $imageFileType = pathinfo($_FILES['uploads']['name'],PATHINFO_EXTENSION);
     // Check if image file is a actual image or fake image
-    if(isset($_POST["submit"])) {
-        $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
-        if($check !== false) {
-            echo "File is an image - " . $check["mime"] . ".";
-            $uploadOk = 1;
-        } else {
-            echo "File is not an image.";
-            $uploadOk = 0;
-        }
+        // Allow certain file formats
+    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
+    && $imageFileType != "gif" ) {
+        echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
+        $uploadOk = 0;
     }
+    
+    $check = getimagesize($_FILES["uploads"]["tmp_name"]);
+    if($check !== false) {
+        echo "File is an image - " . $check["mime"] . ".";
+        $uploadOk = 1;
+    } else {
+        echo "File is not an image.";
+        $uploadOk = 0;
+    }
+
     // Check if file already exists
     if (file_exists($target_file)) {
         echo "Sorry, file already exists.";
@@ -1061,12 +1066,7 @@ Function saveUploadedImageAs($filename, $uid, $pid){
         echo "Sorry, your file is too large.";
         $uploadOk = 0;
     }
-    // Allow certain file formats
-    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
-    && $imageFileType != "gif" ) {
-        echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
-        $uploadOk = 0;
-    }
+
     // Check if $uploadOk is set to 0 by an error
     if ($uploadOk == 0) {
         echo "Sorry, your file was not uploaded.";
