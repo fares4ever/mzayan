@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: fares
@@ -15,47 +16,47 @@ $app = new \Slim\Slim();
 require_once('lib/OAuth2/Autoloader.php');
 OAuth2\Autoloader::register();
 
-$app->post('/token','getToken');
+$app->post('/token', 'getToken');
 
-$app->get('/hello/:name','sayHelloTo');
-$app->post('/login','login');
-$app->get('/testLogin','authenticate','testLogin');
-$app->get('/logout','logout');
+$app->get('/hello/:name', 'sayHelloTo');
+$app->post('/login', 'login');
+$app->get('/testLogin', 'authenticate', 'testLogin');
+$app->get('/logout', 'logout');
 
-$app->post('/register','registerNewUser');
-$app->post('/user/:uid/addname','addDisplayName');
-$app->post('/addUserInfo/:uid','addUserInfo');
-$app->post('/checkdisplayname','checkDispayName');
+$app->post('/register', 'registerNewUser');
+$app->post('/user/:uid/addname', 'addDisplayName');
+$app->post('/addUserInfo/:uid', 'addUserInfo');
+$app->post('/checkdisplayname', 'checkDispayName');
 
-$app->post('/addpost','addNewPost');
-$app->post('/post/:pid/comment','addComment');
-$app->post('/post/:pid/like','likePost');
-$app->post('/post/:pid/unlike','unLikePost');
+$app->post('/addpost', 'addNewPost');
+$app->post('/post/:pid/comment', 'addComment');
+$app->post('/post/:pid/like', 'likePost');
+$app->post('/post/:pid/unlike', 'unLikePost');
 
-$app->post('/user/:fuid/follow','followUser');
-$app->post('/user/:fuid/unfollow','unFollowUser');
+$app->post('/user/:fuid/follow', 'followUser');
+$app->post('/user/:fuid/unfollow', 'unFollowUser');
 
 //$app->get('/posts','getPosts');
-$app->get('/expolre/latest','exploreLatest');
-$app->get('/expolre/popular','explorePopular');
-$app->get('/user/:uid/profile','getUserProfile');
-$app->get('/user/:uid/posts','getUserPosts');
-$app->get('/user/:uid/followers','getFollowers');
-$app->get('/user/:uid/followings','getFollowings');
+$app->get('/explore/latest', 'exploreLatest');
+$app->get('/explore/popular', 'explorePopular');
+$app->get('/user/:uid/profile', 'getUserProfile');
+$app->get('/user/:uid/posts', 'getUserPosts');
+$app->get('/user/:uid/followers', 'getFollowers');
+$app->get('/user/:uid/followings', 'getFollowings');
 
-$app->get('/activities','getActivities');
+$app->get('/activities', 'getActivities');
 
-$app->get('/post/:pid/likers','getLikers');
-$app->get('/post/:pid/comments','getComments');
-$app->get('/post/:pid/bidders','getBidders');
+$app->get('/post/:pid/likers', 'getLikers');
+$app->get('/post/:pid/comments', 'getComments');
+$app->get('/post/:pid/bidders', 'getBidders');
 
 
-    
+
 // run
 $app->run();
 
-function sayHelloTo($name){
-     echo "Hello, $name";
+function sayHelloTo($name) {
+    echo "Hello, $name";
 }
 
 function login() {
@@ -64,7 +65,6 @@ function login() {
         $app->setEncryptedCookie('uid', 'demo', '1 minutes');
         $app->setEncryptedCookie('key', 'demo', '1 minutes');
         echo 'Logged in as demo';
-
     } catch (Exception $e) {
         $app->response()->status(400);
         $app->response()->header('X-Status-Reason', $e->getMessage());
@@ -82,7 +82,6 @@ function authenticate(\Slim\Route $route) {
         $easyUiResult['msg'] = "Authorization";
         $app->halt(300, 'Not Authorized...');
     }
-    
 }
 
 function validateUserKey($uid, $key) {
@@ -93,10 +92,9 @@ function validateUserKey($uid, $key) {
         return false;
     }
 }
-    
 
-Function getToken(){
-    $dsn      = 'mysql:host=127.0.0.1;port=8889;dbname=mzayan';
+Function getToken() {
+    $dsn = 'mysql:host=127.0.0.1;port=8889;dbname=mzayan';
     $username = 'root';
     $password = 'root';
     // $dsn is the Data Source Name for your database, for exmaple "mysql:dbname=my_oauth2_db;host=localhost"
@@ -109,42 +107,41 @@ Function getToken(){
     // Handle a request for an OAuth2.0 Access Token and send the response to the client
     $server->handleTokenRequest(OAuth2\Request::createFromGlobals())->send();
 }
-  
- 
+
 // <editor-fold desc="Login Functions">
-    
-/***
+
+/* * *
  *  POST /register
  *  @param String user_email
  *  @param String user_pass 
  */
-Function registerNewUser(){
+Function registerNewUser() {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $r_userEmail = $req->post('user_email');
     $r_userPass = $req->post('user_pass');
-    
+
     if (isEmailUsed($r_userEmail))
-        errorJson ("This Email is already Used");
-    
+        errorJson("This Email is already Used");
+
     validatePassword($r_userPass);
-    
+
     $sha1Pass = sha1($r_userPass);
     $query = "INSERT INTO mz_users(email, password) VALUES(:email, :pass)";
-    
+
     try {
         $dbCon = getConnection();
         //$stmt   = $dbCon->query($query);
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("email", $r_userEmail);
         $stmt->bindParam("pass", $r_userPass);
         $stmt->execute();
         $uid = $dbCon->lastInsertId();
         $stmt = null;
-        
+
         $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, 'Not Set');
                   INSERT INTO oauth_users(username, password) VALUES (:email, :sha1pass)";
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid);
         $stmt->bindParam("email", $r_userEmail);
         $stmt->bindParam("sha1pass", $sha1Pass);
@@ -152,10 +149,9 @@ Function registerNewUser(){
         $dbCon = null;
         echo json_encode(array('last Inserted sha1 is ' => $sha1Pass));
         //echo '{"users": ' . json_encode($users) . '}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
 }
 
 /**
@@ -163,22 +159,22 @@ Function registerNewUser(){
  * @param Int $uid 
  * @param String $user_dname Dispaly Name to add
  */
-Function addDisplayName($uid){
+Function addDisplayName($uid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $dName = $req->post('user_dname');
-    
+
     if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT))
         errorJson("Somthing Wrong");
-    
-    if(isDisplayNameUsed($dName))
-        errorJson ($dName." Already Used");
-     
+
+    if (isDisplayNameUsed($dName))
+        errorJson($dName . " Already Used");
+
     $query = "INSERT INTO mz_userInfo(uid, displayname) VALUES(:uid, :dname)";
     try {
         $dbCon = getConnection();
         //$stmt   = $dbCon->query($query);
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid);
         $stmt->bindParam("dname", $dName);
         $stmt->execute();
@@ -187,11 +183,9 @@ Function addDisplayName($uid){
         $dbCon = null;
         echo json_encode(array('uid' => $uid));
         //echo '{"users": ' . json_encode($users) . '}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
-    
 }
 
 /**
@@ -202,44 +196,43 @@ Function addDisplayName($uid){
  * @param String user_age the age of the user
  * @param String user_status Status that appears under his Display Name
  */
-Function addUserInfo($uid){
+Function addUserInfo($uid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uAvatar = $req->post('user_avatar');
     $uMobile = $req->post('user_mobile');
     $uAge = $req->post('user_age');
     $uStatus = $req->post('user_status');
-    
+
     if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT))
         errorJson("Somthing Wrong");
-    
+
     //checkDispayName($r_userdname);
     //
-    $s = ($uStatus == null  || $uStatus == "" )? "" : " ustatus = :ustatus";
-    $m = ($uMobile == null  || $uMobile == "" )? "" : " mobile = :mobile";
-    $a = ($uAge == null     || $uAge == "" )?    "" : " age = :age";
-    $v = ($uAvatar == null  || $uAvatar == "" )? "" : " uavatar = :uavatar";
+    $s = ($uStatus == null || $uStatus == "" ) ? "" : " ustatus = :ustatus";
+    $m = ($uMobile == null || $uMobile == "" ) ? "" : " mobile = :mobile";
+    $a = ($uAge == null || $uAge == "" ) ? "" : " age = :age";
+    $v = ($uAvatar == null || $uAvatar == "" ) ? "" : " uavatar = :uavatar";
 
     $setparam = array($s, $m, $a, $v);
-    $setString = addParam($setparam , 0);
-    
-    $query = "UPDATE mz_userInfo SET ".$setString." WHERE uid = :uid";
+    $setString = addParam($setparam, 0);
+
+    $query = "UPDATE mz_userInfo SET " . $setString . " WHERE uid = :uid";
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid);
-        ($uStatus == "")?   :$stmt->bindParam("ustatus", $uStatus);
-        ($uMobile == "")?   :$stmt->bindParam("mobile", $uMobile);
-        ($uAge == "")?      :$stmt->bindParam("age", $uAge);
-        ($uAvatar == "")?   :$stmt->bindParam("uavatar", $uAvatar);
+        ($uStatus == "")? : $stmt->bindParam("ustatus", $uStatus);
+        ($uMobile == "")? : $stmt->bindParam("mobile", $uMobile);
+        ($uAge == "")? : $stmt->bindParam("age", $uAge);
+        ($uAvatar == "")? : $stmt->bindParam("uavatar", $uAvatar);
         $stmt->execute();
-        
+
         $dbCon = null;
         echo json_encode(array('uid' => $uid));
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
 }
 
 function testLogin() {
@@ -249,13 +242,11 @@ function testLogin() {
     try {
         $r_userName = $req->get('user_name');
         $r_userPass = $req->get('user_pass');
-        if ($r_userName ==="fares"){
+        if ($r_userName === "fares") {
             $result['success'] = true;
-
-        }else{
+        } else {
             $result['success'] = false;
         }
-
     } catch (Exception $e) {
         $app->response()->status(400);
         $app->response()->header('X-Status-Reason', $e->getMessage());
@@ -263,24 +254,23 @@ function testLogin() {
     $app->response()->header('Content-Type', 'application/json');
     echo json_encode($result);
 }
-    
-function logout() {
-        $app = \Slim\Slim::getInstance();
-        try {
-            $app->deleteCookie('uid');
-            $app->deleteCookie('key');
-            echo 'demo Logged out';
-            
-        } catch (Exception $e) {
-            $app->response()->status(400);
-            $app->response()->header('X-Status-Reason', $e->getMessage());
-        }
-    }
-// </editor-fold>
 
+function logout() {
+    $app = \Slim\Slim::getInstance();
+    try {
+        $app->deleteCookie('uid');
+        $app->deleteCookie('key');
+        echo 'demo Logged out';
+    } catch (Exception $e) {
+        $app->response()->status(400);
+        $app->response()->header('X-Status-Reason', $e->getMessage());
+    }
+}
+
+// </editor-fold>
 // <editor-fold desc="POST Functions">
 
-/***
+/* * *
  * POST /addpost
  * (u_id, p_title, p_image) NOT NULL
  * return Success with the new pid
@@ -297,98 +287,144 @@ function logout() {
  * @param boolean p_forsale is this post for sale
  * 
  */
-function addNewPost(){
+function addNewPost() {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
+
+
+    //$imgs = array();
+
+    //$files = $_FILES['uploads'];
+//    $cnt = count($files['name']);
+//    $tmp_name = $files['tmp_name']."";
+//    
+//    echo "is writeable = ". is_writable("uploads");
+//    echo " is readable = ". is_readable("/Applications/MAMP/tmp/php/");
+//    echo " file = " .$tmp_name;
+//    echo " (".getimagesize($tmp_name).")";
+//    echo " name = " .$files['name'];
+//    echo " unique name= ". $name = uniqid('img-'.'uid'.'-'.'pid'.'-'.date('Ymd').'-');
+//    //move_uploaded_file($files['tmp_name'], 'uploads/xxx');// . $files['tmp_name']);
+// //           
+//    for($i = 0 ; $i < $cnt ; $i++) {
+//        if ($files['error'][$i] === 0) {
+//            $name = uniqid('img-'.date('Ymd').'-');
+//            if (move_uploaded_file($files['tmp_name'][$i], 'uploads/' . $name) === true) {
+//                $imgs[] = array('url' => '/uploads/' . $name, 'name' => $files['name'][$i]);
+//            }
+//
+//        }
+//    }
+
+    //$imageCount = count($imgs);
+
+//    if ($imageCount == 0) {
+//       echo '222 No files uploaded!!  <p><a href="/">Try again</a>';
+//       return;
+//    }
+//
+//    $plural = ($imageCount == 1) ? '' : 's';
+
+//    foreach($imgs as $img) {
+//        printf('%s <img src="%s" width="50" height="50" /><br/>', $img['name'], $img['url']);
+//    }    
+
+
+//    exit(1);
     
-    $uid    = $req->post('u_id');
-    $title  = $req->post('p_title');
-    $image  = $req->post('p_image');
-    $desc   = $req->post('p_desc');
+    $uid = $req->post('u_id');
+    $title = $req->post('p_title');
+    $image = uniqid('img-'.date('His').'-');//Ymd will for directory
+    $desc = $req->post('p_desc');
     $mobile = $req->post('p_mobile');
-    $city   = $req->post('p_city');
-    $color  = $req->post('p_color');
-    $age    = $req->post('p_age');
-    $sec    = $req->post('p_section');
-    $sale   = $req->post('p_forsale');
+    $city = $req->post('p_city');
+    $color = $req->post('p_color');
+    $age = $req->post('p_age');
+    $sec = $req->post('p_section');
+    $sale = $req->post('p_forsale');
+
+    if (!filter_var($uid, FILTER_VALIDATE_INT)) {
+        errorJson("Something wrong: 1");
+    }
+    if ($title == null || $title == "") {
+        errorJson("Title cannot be empty");
+    }
+
+    if (!isset($_FILES['uploads'])) {
+        errorJson("Image Must be uploaded");
+    }
     
-    if (!filter_var($uid, FILTER_VALIDATE_INT))
-        errorJson ("Something wrong: 1");
-    if ($title == null || $title =="")
-        errorJson ("Title cannot be empty");
-    if ($image == null || $image == "")
-        errorJson ("Image must be uploaded");
-    
-    $f_desc   = ($desc == null  || $desc == "" )?       array('','') : array('pdesc',':pdesc');
-    $f_mobile = ($mobile == null  || $mobile == "" )?   array('','') : array('pmobile',':pmobile');
-    $f_city   = ($city == null  || $city == "" )?       array('','') : array('pcity',':pcity');
-    $f_color  = ($color == null  || $color == "" )?     array('','') : array('pcolor',':pcolor');
-    $f_age    = ($age == null  || $age == "" )?         array('','') : array('page',':page');
-    $f_sec    = ($sec == null  || $sec == "" )?         array('','') : array('psection',':psection');
-    $f_sale   = ($sale == null  || $sale == "" )?       array('','') : array('forsale',':forsale');
-    
+    $f_desc = ($desc == null || $desc == "" ) ? array('', '') : array('pdesc', ':pdesc');
+    $f_mobile = ($mobile == null || $mobile == "" ) ? array('', '') : array('pmobile', ':pmobile');
+    $f_city = ($city == null || $city == "" ) ? array('', '') : array('pcity', ':pcity');
+    $f_color = ($color == null || $color == "" ) ? array('', '') : array('pcolor', ':pcolor');
+    $f_age = ($age == null || $age == "" ) ? array('', '') : array('page', ':page');
+    $f_sec = ($sec == null || $sec == "" ) ? array('', '') : array('psection', ':psection');
+    $f_sale = ($sale == null || $sale == "" ) ? array('', '') : array('forsale', ':forsale');
+
     $param = array(
-        'fields'=> array('uid', 'ptitle', 'pimage', $f_desc[0], $f_mobile[0], $f_city[0], $f_color[0], $f_age[0], $f_sec[0], $f_sale[0]),
-        'values'=> array(':uid',':ptitle',':pimage', $f_desc[1], $f_mobile[1], $f_city[1], $f_color[1], $f_age[1], $f_sec[1], $f_sale[1]));
-    
+        'fields' => array('uid', 'ptitle', 'pimage', $f_desc[0], $f_mobile[0], $f_city[0], $f_color[0], $f_age[0], $f_sec[0], $f_sale[0]),
+        'values' => array(':uid', ':ptitle', ':pimage', $f_desc[1], $f_mobile[1], $f_city[1], $f_color[1], $f_age[1], $f_sec[1], $f_sale[1]));
+
     $fields = addParam($param['fields'], 0);
     $values = addParam($param['values'], 0);
-    
-    $query = "INSERT INTO mz_post (".$fields.") VALUES (".$values.")";
+
+    $query = "INSERT INTO mz_post (" . $fields . ") VALUES (" . $values . ")";
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
-        
+        $stmt = $dbCon->prepare($query);
+
         $stmt->bindParam("uid", $uid);
         $stmt->bindParam("ptitle", $title);
         $stmt->bindParam("pimage", $image);
-        
-        ($desc == "")?   :$stmt->bindParam("pdesc",   $desc);
-        ($mobile == "")? :$stmt->bindParam("pmobile", $mobile);
-        ($city == "")?   :$stmt->bindParam("pcity",   $city, PDO::PARAM_INT);
-        ($color == "")?  :$stmt->bindParam("pcolor",  $color,PDO::PARAM_INT);
-        ($age == "")?    :$stmt->bindParam("page",    $age,  PDO::PARAM_INT);
-        ($sec == "")?    :$stmt->bindParam("psection",$sec,  PDO::PARAM_INT);
-        ($sale == "")?   :$stmt->bindParam("forsale", $sale, PDO::PARAM_BOOL);
+
+        ($desc == "")? : $stmt->bindParam("pdesc", $desc);
+        ($mobile == "")? : $stmt->bindParam("pmobile", $mobile);
+        ($city == "")? : $stmt->bindParam("pcity", $city, PDO::PARAM_INT);
+        ($color == "")? : $stmt->bindParam("pcolor", $color, PDO::PARAM_INT);
+        ($age == "")? : $stmt->bindParam("page", $age, PDO::PARAM_INT);
+        ($sec == "")? : $stmt->bindParam("psection", $sec, PDO::PARAM_INT);
+        ($sale == "")? : $stmt->bindParam("forsale", $sale, PDO::PARAM_BOOL);
         $stmt->execute();
         $pid = $dbCon->lastInsertId();
+        saveUploadedImageAs($image , $uid, $pid);
         $dbCon = null;
         echo json_encode(array('Success' => $pid));
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
-    
-    
+
+
     //echo json_encode(array("success"=>$pid));
 }
 
-/***
+/* * *
  * POST /post/:pid/comment
  */
-function addComment($pid){
+
+function addComment($pid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uid = $req->post('u_id');
     $comment = $req->post('c_txt');
     $price = $req->post('c_price');
-    
-    if ($uid == null){
+
+    if ($uid == null) {
         errorJson("Somthing Wrong");
     }
-    if ($comment == null && $price == null){
+    if ($comment == null && $price == null) {
         errorJson("Either Comment or Pid");
     }
-    if ($price == NULL){
+    if ($price == NULL) {
         $price = null;
     }
     $query = "INSERT INTO mz_post_comment(pid, uid, comment, price)"
             . "                  VALUES(:pid, :uid, :comment, :price)";
-    
+
     try {
         $dbCon = getConnection();
         //$stmt   = $dbCon->query($query);
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid);
         $stmt->bindParam("uid", $uid);
         $stmt->bindParam("comment", $comment);
@@ -398,179 +434,176 @@ function addComment($pid){
         $dbCon = null;
         echo json_encode(array('Success' => $cid));
         //echo '{"users": ' . json_encode($users) . '}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
 }
 
-/***
+/* * *
  * POST /post/:pid/like
  * @param Int pid << from the URI 
  * @param Int u_id the user that likes the post
  */
-function likePost($pid){
+
+function likePost($pid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uid = $req->post('u_id');
-    
-    if ($uid == null){
+
+    if ($uid == null) {
         errorJson("Something Wrong");
     }
     // check like existance first
     $query = "SELECT count(*) FROM mz_post_like WHERE pid = :pid AND uid = :uid ";
     //$query = "INSERT INTO mz_post_like(pid, uid) VALUES(:pid, :uid)";
-    
+
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->execute();
-        if ($stmt->fetchColumn()>0){
+        if ($stmt->fetchColumn() > 0) {
             errorJson("Already Liked");
         }
-        
+
         $stmt = null;
         $query = "INSERT INTO mz_post_like(pid, uid) VALUES(:pid, :uid)";
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->execute();
         $lid = $dbCon->lastInsertId();
         $dbCon = null;
         echo json_encode(array('Success' => $lid));
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }  
 }
 
-/***
+/* * *
  * POST /post/:pid/unlike
  * @param Int pid << from the URI 
  * @param Int u_id the user that unlikes the post
  */
-function unLikePost($pid){
+
+function unLikePost($pid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uid = $req->post('u_id');
-    if ($uid == null){
+    if ($uid == null) {
         errorJson("Something Wrong");
     }
     $query = "SELECT count(*) FROM mz_post_like WHERE pid = :pid AND uid = :uid ";
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->execute();
-        if ($stmt->fetchColumn()==0){
+        if ($stmt->fetchColumn() == 0) {
             errorJson("Already NOT Liked");
         }
         $stmt = null;
         $query = "DELETE FROM mz_post_like  WHERE pid = :pid AND uid = :uid";
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid, PDO::PARAM_INT);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->execute();
         $dbCon = null;
         echo json_encode(array('Success'));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
-/***
+/* * *
  * POST /user/:fuid/follow
  * @param Int $fuid the user to follow
  * @param Int u_id the following user
  */
-function followUser($fuid){
+
+function followUser($fuid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uid = $req->post('u_id');
-    if ($uid == null){
+    if ($uid == null) {
         errorJson("Something Wrong");
     }
     $query = "SELECT count(*) FROM mz_following WHERE uid = :uid AND f_uid = :f_uid ";
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
         $stmt->execute();
-        if ($stmt->fetchColumn()>0){
+        if ($stmt->fetchColumn() > 0) {
             errorJson("Already Followed");
         }
         $stmt = null;
         $query = "INSERT INTO mz_following(uid, f_uid) VALUES(:uid, :f_uid)";
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
         $stmt->execute();
         $dbCon = null;
         echo json_encode(array('Success'));
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }
-
 }
 
-/***
+/* * *
  * POST /user/:fuid/unfollow
  * @param Int $fuid the user to unfollow
  * @param Int u_id the unfollowing user
  */
-function unFollowUser($fuid){
+
+function unFollowUser($fuid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $uid = $req->post('u_id');
-    if ($uid == null){
+    if ($uid == null) {
         errorJson("Something Wrong");
     }
     $query = "SELECT count(*) FROM mz_following WHERE uid = :uid AND f_uid = :f_uid ";
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
         $stmt->execute();
-        if ($stmt->fetchColumn()==0){
-                errorJson("Already Unfollowed");
+        if ($stmt->fetchColumn() == 0) {
+            errorJson("Already Unfollowed");
         }
         $stmt = null;
         $query = "DELETE FROM mz_following WHERE uid = :uid AND f_uid = :f_uid";
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid, PDO::PARAM_INT);
         $stmt->bindParam("f_uid", $fuid, PDO::PARAM_INT);
         $stmt->execute();
         $dbCon = null;
         echo json_encode(array('Success'));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
 // </editor-fold>
-
 // <editor-fold desc="GET Functions">
 
 /**
  *  GET /expolre/latest
  * @param Int page_number which paeg. for navigation page by page
  */
-Function exploreLatest(){
+Function exploreLatest() {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $pageNumber = $req->get('page_number');
     // Number of postes per request
-    $postPerPage = 21; 
+    $postPerPage = 21;
     $offsit = $postPerPage * $pageNumber;
-    
+
     $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
 		 cl.cname, a.aname, s.sname, cty.cname, 
 		count(distinct c.cid) as ccount, 
@@ -588,34 +621,33 @@ Function exploreLatest(){
             GROUP BY p.pid
             ORDER BY p.pdate DESC
             LIMIT :offsit, :pcount ";
-    
+
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($query);
         $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
         $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
         $stmt->execute();
-        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $posts = $stmt->fetchAll(PDO::FETCH_OBJ);
         $dbCon = null;
         echo '{"posts": ' . json_encode($posts) . '}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }    
 }
 
 /**
  *  GET /expolre/popular get the most popular post by number of likes
  * @param Int page_number which paeg. for navigation page by page
  */
-Function explorePopular(){
+Function explorePopular() {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $pageNumber = $req->get('page_number');
     // Number of postes per request
-    $postPerPage = 21; 
+    $postPerPage = 21;
     $offsit = $postPerPage * $pageNumber;
-    
+
     $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
 		cl.cname, a.aname, s.sname, cty.cname, 
 		count(distinct c.cid) as ccount, 
@@ -632,34 +664,31 @@ Function explorePopular(){
             GROUP BY p.pid
             ORDER BY lcount desc
             LIMIT :offsit, :pcount ";
-    
+
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($query);
         $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
         $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
         $stmt->execute();
-        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $posts = $stmt->fetchAll(PDO::FETCH_OBJ);
         $dbCon = null;
         echo '{"posts": ' . json_encode($posts) . '}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }    
 }
-
-
 
 /**
  * GET /user/:uid/profile
  * @param type $uid 
  */
-function getUserProfile($uid){
-    
-    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
+function getUserProfile($uid) {
+
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)) {
         errorJson("Somthing Wrong in user id (uid)");
     }
-    
+
     $query = "SELECT u.uid, i.uavatar, i.displayname, i.ustatus , i.mobile, age, 
                 count(f.f_uid) as following, 
                 count(distinct p.pid) as posts, 
@@ -670,33 +699,32 @@ function getUserProfile($uid){
                 left join mz_following ff on u.uid = ff.f_uid
                 left join mz_post p on u.uid = p.uid 
             WHERE u.uid = :uid";
-        
-    
+
+
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid);
         $stmt->execute();
-        $userInfo = $stmt->fetchObject(); 
+        $userInfo = $stmt->fetchObject();
         $dbCon = null;
         echo json_encode(array('UserInfo' => $userInfo));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
 /**
  * GET /user/:uid/posts
  */
-function getUserPosts($uid){
+function getUserPosts($uid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $pageNumber = $req->get('page_number');
     // Number of postes per request
-    $postPerPage = 21; 
+    $postPerPage = 21;
     $offsit = $postPerPage * $pageNumber;
-    
+
     $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
 		 cl.cname, a.aname, s.sname, cty.cname, 
 		count(distinct c.cid) as ccount, 
@@ -715,7 +743,7 @@ function getUserPosts($uid){
             GROUP BY p.pid
             ORDER BY p.pdate desc
             LIMIT :offsit, :pcount ";
-    
+
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($query);
@@ -723,12 +751,11 @@ function getUserPosts($uid){
         $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
         $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
         $stmt->execute();
-        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $posts = $stmt->fetchAll(PDO::FETCH_OBJ);
         $dbCon = null;
         echo '{"posts": ' . json_encode($posts) . '}';
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
@@ -736,27 +763,26 @@ function getUserPosts($uid){
  * GET /user/:uid/followers
  * @param type $uid 
  */
-function getFollowers($uid){
-       if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
+function getFollowers($uid) {
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)) {
         errorJson("Somthing Wrong in user id (uid)");
     }
-    
+
     $query = "  SELECT ui.uid, ui.displayname 
                 FROM mz_following f
                     left join mz_userInfo ui on f.uid = ui.uid
                 WHERE f.f_uid = :uid";
-        
+
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid);
         $stmt->execute();
-        $users = $stmt->fetchObject(); 
+        $users = $stmt->fetchObject();
         $dbCon = null;
         echo json_encode(array('Followings' => $users));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
@@ -764,67 +790,62 @@ function getFollowers($uid){
  * GET /user/:uid/followings
  * @param type $uid 
  */
-function getFollowings($uid){
-    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)){
+function getFollowings($uid) {
+    if ($uid == null || !filter_var($uid, FILTER_VALIDATE_INT)) {
         errorJson("Somthing Wrong in user id (uid)");
     }
-    
+
     $query = "select ui.uid, ui.displayname 
             FROM mz_following f
                 left join mz_userInfo ui on f.f_uid = ui.uid
             WHERE f.uid = :uid";
-        
+
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("uid", $uid);
         $stmt->execute();
-        $users = $stmt->fetchObject(); 
+        $users = $stmt->fetchObject();
         $dbCon = null;
         echo json_encode(array('Followings' => $users));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
-
-
 
 /**
  * GET /post/:pid/likers
  * @param type $pid 
  */
-Function getLikers($pid){
-    echo json_encode("getLikers Not Implemented Yet ".$pid);
+Function getLikers($pid) {
+    echo json_encode("getLikers Not Implemented Yet " . $pid);
 }
 
 /**
  * GET /post/:pid/comments
  * @param type $pid 
  */
-Function getComments($pid){
-    
-    if ($pid == null || !filter_var($pid, FILTER_VALIDATE_INT)){
+Function getComments($pid) {
+
+    if ($pid == null || !filter_var($pid, FILTER_VALIDATE_INT)) {
         errorJson("Somthing Wrong in user id (uid)");
     }
-    
+
     $query = "  SELECT c.uid, ui.displayname , comment, c_date, price
                 FROM mz_post_comment c
                     LEFT JOIN mz_userInfo ui ON c.uid = ui.uid
                 WHERE c.pid = :pid";
-        
+
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid);
         $stmt->execute();
-        $comments = $stmt->fetchObject(); 
+        $comments = $stmt->fetchObject();
         $dbCon = null;
         echo json_encode(array('Comments' => $comments));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
@@ -832,47 +853,46 @@ Function getComments($pid){
  * GET /post/:pid/bidders
  * @param Int $pid post id
  */
-Function getBidders($pid){
-    
-    if ($pid == null || !filter_var($pid, FILTER_VALIDATE_INT)){
+Function getBidders($pid) {
+
+    if ($pid == null || !filter_var($pid, FILTER_VALIDATE_INT)) {
         errorJson("Somthing Wrong in user id (uid)");
     }
-    
+
     $query = "  SELECT ui.uid, ui.displayname, price, c_date
                 FROM mz_post_comment c
                     LEFT JOIN mz_userInfo ui on c.uid = ui.uid
                 WHERE c.price IS NOT NULL 
                       AND c.pid = :pid";
-        
+
     try {
         $dbCon = getConnection();
-        $stmt = $dbCon->prepare($query); 
+        $stmt = $dbCon->prepare($query);
         $stmt->bindParam("pid", $pid);
         $stmt->execute();
-        $bidders = $stmt->fetchObject(); 
+        $bidders = $stmt->fetchObject();
         $dbCon = null;
         echo json_encode(array('Bidders' => $bidders));
-    }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
 }
 
-/***
+/* * *
  * GET /activities "get the latest followings' posts"
  * @param Int uid the user
  * @param Int page_number for posts pagination
  */
-Function getActivities($uid){
+
+Function getActivities($uid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
-    
+
     $pageNumber = $req->get('page_number');
     // Number of postes per request
-    $postPerPage = 21; 
+    $postPerPage = 21;
     $offsit = $postPerPage * $pageNumber;
-    
+
     $query = "SELECT p.pid, p.uid, ui.displayname, ui.uavatar, 
                 p.pimage, p.ptitle, p.pdesc, p.forsale, p.pdate,
 		cl.cname, a.aname, s.sname, cty.cname, 
@@ -891,7 +911,7 @@ Function getActivities($uid){
             GROUP BY p.pid
             ORDER BY p.pdate desc
             LIMIT :offsit, :pcount ";
-    
+
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($query);
@@ -899,104 +919,99 @@ Function getActivities($uid){
         $stmt->bindParam("offsit", $offsit, PDO::PARAM_INT);
         $stmt->bindParam("pcount", $postPerPage, PDO::PARAM_INT);
         $stmt->execute();
-        $posts  = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $posts = $stmt->fetchAll(PDO::FETCH_OBJ);
         $dbCon = null;
         echo '{"posts": ' . json_encode($posts) . '}';
+    } catch (PDOException $e) {
+        echo '{"error":{"text":' . $e->getMessage() . '}}';
     }
-    catch(PDOException $e) {
-        echo '{"error":{"text":'. $e->getMessage() .'}}';
-    }
-
 }
+
 // </editor-fold>
 
+//<editor-fold desc="Helper Functions">
 
- //<editor-fold desc="Helper Functions">
-
-/***
- * TODO: change this to be decreament
+/* * *
+ * TODO: make this to be decreament
  */
-function addParam($param, $i){
+function addParam($param, $i) {
     $t = "";
-    if($i < count($param))
-    {
-        if($param[$i] == "")
-            $t = addParam ($param, $i+1);
-        else{
+    if ($i < count($param)) {
+        if ($param[$i] == "")
+            $t = addParam($param, $i + 1);
+        else {
             $t = $param[$i];
-            $n = addParam($param, $i+1);
+            $n = addParam($param, $i + 1);
             if ($n != "")
-                $t .= ", " . $n;  
+                $t .= ", " . $n;
         }
     }
     return $t;
 }
 
-Function validatePassword($pass){
+Function validatePassword($pass) {
     if ($pass == null || $pass == "")
-        errorJson ("Please choose Password");
+        errorJson("Please choose Password");
 }
 
-Function isEmailUsed($email){
+Function isEmailUsed($email) {
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL))
-        errorJson ("Not a valid email");
-      
+        errorJson("Not a valid email");
+
     $sql = "SELECT count(email) FROM mz_users WHERE email LIKE :email limit 1";
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($sql);
         $stmt->bindParam("email", $email);
         $stmt->execute();
-        $count = $stmt->fetchColumn(); 
+        $count = $stmt->fetchColumn();
         $dbCon = null;
-        if ($count>0)
+        if ($count > 0)
             return true;
-            //errorJson ("This Email is already Used");
-        
+        //errorJson ("This Email is already Used");
         //echo '{"user": ' . json_encode($users) . '}';
-    } catch(PDOException $e) {
+    } catch (PDOException $e) {
         errorJson($e->getMessage());
         //echo '{"error":{"text":'. $e->getMessage() .'}}'; 
     }
     return false;
 }
 
-Function isDisplayNameUsed($dName){
+Function isDisplayNameUsed($dName) {
     if ($dName == null || $dName == "")
-        errorJson ("Display Name Cannot be empty");
-    
+        errorJson("Display Name Cannot be empty");
+
     $sql = "SELECT count(displayname) FROM mz_userInfo WHERE displayname LIKE :dname limit 1";
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($sql);
         $stmt->bindParam("dname", $dName);
         $stmt->execute();
-        $count = $stmt->fetchColumn(); 
+        $count = $stmt->fetchColumn();
         $dbCon = null;
-        if ($count>0)
+        if ($count > 0)
             return true;
-    } catch(PDOException $e) {
+    } catch (PDOException $e) {
         errorJson($e->getMessage());
     }
     return false;
 }
 
-Function isUserInfoAdded($uid){
+Function isUserInfoAdded($uid) {
     $sql = "SELECT count(uid) FROM mz_userInfo WHERE uid = :uid";
     try {
         $dbCon = getConnection();
         $stmt = $dbCon->prepare($sql);
         $stmt->bindParam("uid", $uid);
         $stmt->execute();
-        $count = $stmt->fetchColumn(); 
+        $count = $stmt->fetchColumn();
         $dbCon = null;
-        if ($count>0)
+        if ($count > 0)
             return true;
-            //errorJson ("The User Information (Display Name) is already Added");
-        
+        //errorJson ("The User Information (Display Name) is already Added");
         //echo '{"user": ' . json_encode($users) . '}';
-    } catch(PDOException $e) {
+    } catch (PDOException $e) {
         errorJson($e->getMessage());
         //echo '{"error":{"text":'. $e->getMessage() .'}}'; 
     }
@@ -1004,33 +1019,83 @@ Function isUserInfoAdded($uid){
 }
 
 // POST /checkdisplayname     TODO: review?
-Function checkDispayName(){
+Function checkDispayName() {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
     $dName = $req->post('user_dname');
+
+    if (isDisplayNameUsed($dName))
+        errorJson($dName . " is Already Used");
+
+    echo json_encode(array('Success' => true));
+}
+
+Function saveUploadedImageAs($filename, $uid, $pid){
+    if (!isset($_FILES['uploads'])) {
+        errorJson("No Files Uploaded");
+        
+    }
+    $target_dir = "uploads/".date('Ymd')."/";
     
-    if(isDisplayNameUsed($dName))
-        errorJson ($dName. " is Already Used");
-    
-    echo json_encode(array('Success'=>true));
+    $target_file = $target_dir . $filename ;
+    $uploadOk = 1;
+    $imageFileType = pathinfo($target_file,PATHINFO_EXTENSION);
+    // Check if image file is a actual image or fake image
+    if(isset($_POST["submit"])) {
+        $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
+        if($check !== false) {
+            echo "File is an image - " . $check["mime"] . ".";
+            $uploadOk = 1;
+        } else {
+            echo "File is not an image.";
+            $uploadOk = 0;
+        }
+    }
+    // Check if file already exists
+    if (file_exists($target_file)) {
+        echo "Sorry, file already exists.";
+        $uploadOk = 0;
+    }
+    // Check file size
+    if ($_FILES["fileToUpload"]["size"] > 500000) {
+        echo "Sorry, your file is too large.";
+        $uploadOk = 0;
+    }
+    // Allow certain file formats
+    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
+    && $imageFileType != "gif" ) {
+        echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
+        $uploadOk = 0;
+    }
+    // Check if $uploadOk is set to 0 by an error
+    if ($uploadOk == 0) {
+        echo "Sorry, your file was not uploaded.";
+    // if everything is ok, try to upload file
+    } else {
+        if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+            echo "The file ". basename( $_FILES["fileToUpload"]["name"]). " has been uploaded.";
+        } else {
+            echo "Sorry, there was an error uploading your file.";
+        }
+    }
 }
 
 // </editor-fold>
 
 
-/***
+/* * *
  * to check that uid is integer and exist in users table and not in userInfo table 
  */
-function checkuid($uid){
+function checkuid($uid) {
     
 }
 
-function errorJson($msg){
-    echo json_encode(array('error'=>$msg));
+function errorJson($msg) {
+    echo json_encode(array('error' => $msg));
     exit();
 }
 
-function successJson($msg){
+function successJson($msg) {
     echo json_encode($msg);
 }
 
@@ -1040,8 +1105,7 @@ function getConnection() {
         $db_password = "root";
         $conn = new PDO('mysql:host=127.0.0.1;port=8889;dbname=mzayan', $db_username, $db_password);
         $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    } catch(PDOException $e) {
+    } catch (PDOException $e) {
         echo 'ERROR: ' . $e->getMessage();
     }
     return $conn;
