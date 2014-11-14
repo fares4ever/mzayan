@@ -50,7 +50,8 @@ $app->get('/post/:pid/likers', 'getLikers');
 $app->get('/post/:pid/comments', 'getComments');
 $app->get('/post/:pid/bidders', 'getBidders');
 
-
+$app->get('/images/:url', 'getImage');
+$app->get('/thumbImages/:url', 'getThumbImage');
 
 // run
 $app->run();
@@ -292,10 +293,11 @@ function addNewPost() {
     $req = $app->request();
 
     validateUploadedImage();
-    
+    $imageExt = pathinfo($_FILES['uploads']['name'],PATHINFO_EXTENSION);
     $uid = $req->post('u_id');
     $title = $req->post('p_title');
-    $image = uniqid('img-'.date('His').'-');//Ymd will be as subdirectories
+    $image = uniqid(date('YmdHis').'-');//Ymd will be as subdirectories
+    $image .= ".".$imageExt;
     $desc = $req->post('p_desc');
     $mobile = $req->post('p_mobile');
     $city = $req->post('p_city');
@@ -348,7 +350,7 @@ function addNewPost() {
         ($sale == "")? : $stmt->bindParam("forsale", $sale, PDO::PARAM_BOOL);
         $stmt->execute();
         $pid = $dbCon->lastInsertId();
-        saveUploadedImageAs($image , $uid, $pid);
+        saveUploadedImageAs($image);
         $dbCon = null;
         echo json_encode(array('Success' => $pid));
     } catch (PDOException $e) {
@@ -362,7 +364,6 @@ function addNewPost() {
 /* * *
  * POST /post/:pid/comment
  */
-
 function addComment($pid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -405,7 +406,6 @@ function addComment($pid) {
  * @param Int pid << from the URI 
  * @param Int u_id the user that likes the post
  */
-
 function likePost($pid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -447,7 +447,6 @@ function likePost($pid) {
  * @param Int pid << from the URI 
  * @param Int u_id the user that unlikes the post
  */
-
 function unLikePost($pid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -483,7 +482,6 @@ function unLikePost($pid) {
  * @param Int $fuid the user to follow
  * @param Int u_id the following user
  */
-
 function followUser($fuid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -519,7 +517,6 @@ function followUser($fuid) {
  * @param Int $fuid the user to unfollow
  * @param Int u_id the unfollowing user
  */
-
 function unFollowUser($fuid) {
     $app = \Slim\Slim::getInstance();
     $req = $app->request();
@@ -888,6 +885,25 @@ Function getActivities($uid) {
     }
 }
 
+Function getImage($url){
+    $app = \Slim\Slim::getInstance();
+    $fileName = "uploads/".substr($url,0,8) ."/".$url;
+    $image = file_get_contents($fileName);
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $app->response->header('Content-Type', 'content-type: ' . $finfo->buffer($image));
+    echo $image;
+}
+
+Function getThumbImage($url){
+    $app = \Slim\Slim::getInstance();
+    
+    $fileName = "uploads/".substr($url,0,8) ."/thumb-".$url;
+    $image = file_get_contents($fileName);
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $app->response->header('Content-Type', 'content-type: ' . $finfo->buffer($image));
+    echo $image;
+    
+}
 // </editor-fold>
 
 //<editor-fold desc="Helper Functions">
@@ -1002,8 +1018,10 @@ Function checkDispayName() {
 Function saveUploadedImageAs($filename){
     validateUploadedImage();
     $files = $_FILES['uploads'];
+    $imageExt = pathinfo($files['name'],PATHINFO_EXTENSION);
+    
     $target_dir = "uploads/".date('Ymd')."/";
-    $target_file = $target_dir . $filename ;
+    $target_file = $filename ;
     
 
     // Check if directory already exists
@@ -1018,7 +1036,9 @@ Function saveUploadedImageAs($filename){
         errorJson("Sorry, file already exists.");
     }
     
-    if (move_uploaded_file($files["tmp_name"], $target_file)) {
+    
+    if (move_uploaded_file($files["tmp_name"], $target_dir.$target_file)) {
+        createThumb($target_dir.$target_file, $target_dir."thumb-".$target_file, 100);
         echo "The file ". basename( $files["name"]). " has been uploaded.";
     } else {
         errorJson("Sorry, there was an error uploading your file.");
@@ -1031,7 +1051,7 @@ Function validateUploadedImage(){
     }
     $files = $_FILES['uploads'];
     
-    // TODO: add more files in the future
+    // TODO: Not Working <><> add more files in the future
     $cnt = count($files['name']);
     if ($cnt>1){
         errorJson("Cannot upload more than one file at the moment");
@@ -1056,8 +1076,48 @@ Function validateUploadedImage(){
     } else {
         errorJson("File is not an image.");
     }
+}
 
+// TODO: Add more Error Handling
+Function createThumb($sourceImage, $destinationThumb, $thumbWidth=200){
+    
+    $imageExt = pathinfo($sourceImage,PATHINFO_EXTENSION);
+    
+    if($imageExt != "jpg" && $imageExt != "png" && $imageExt != "jpeg"
+    && $imageExt != "gif" ) {
+        errorJson("the File is Not Supported Format");
+    }
+    if($imageExt == "jpg" ||$imageExt == "jpeg"){
+        $img = imagecreatefromjpeg( $sourceImage );
+    }  else if ($imageExt == "png") {
+        $img = imagecreatefrompng( $sourceImage );
+    }  else if ($imageExt == "gif") {
+        $img = imagecreatefromgif( $sourceImage );
+    }
+    $width = imagesx( $img );
+    $height = imagesy( $img );
+      
+    // calculate thumbnail size
+    $new_width = $thumbWidth;
+    $new_height = floor( $height * ( $thumbWidth / $width ) );
 
+    // create a new temporary image
+    $tmp_img = imagecreatetruecolor( $new_width, $new_height );
+
+    // copy and resize old image into new image 
+    imagecopyresized( $tmp_img, $img, 0, 0, 0, 0, $new_width, $new_height, $width, $height );
+    
+    // save thumbnail into a file
+    // TODO: add if statements
+    if($imageExt == "jpg" || $imageExt == "jpeg"){
+        imagejpeg( $tmp_img, $destinationThumb );
+    }  else if ($imageExt == "png") {
+        imagepng( $tmp_img, $destinationThumb );
+    }else if($imageExt == "gif"){
+        imagegif($tmp_img, $destinationThumb);
+    }
+    
+    
 }
 // </editor-fold>
 
